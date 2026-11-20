@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Namaz Vakti Panel: UI reference (Design A, 800x480)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600&display=swap" rel="stylesheet">
+<style>
+/* ---------- page chrome (not part of the device UI) ---------- */
+*{box-sizing:border-box}
+:root{--pg-bg:#ECEEF2;--pg-ink:#171B24;--pg-muted:#566072;--pg-line:#CDD3DE;--pg-surface:#fff;--pg-accent:#1B3A8C;--pg-on:#fff}
+@media (prefers-color-scheme:dark){:root{--pg-bg:#101216;--pg-ink:#E8EBF0;--pg-muted:#9BA3B2;--pg-line:#2B303A;--pg-surface:#191C22;--pg-accent:#9DB9FF;--pg-on:#0D1530;color-scheme:dark}}
+body{margin:0;background:var(--pg-bg);color:var(--pg-ink);font:16px/1.5 "Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:856px;margin:0 auto;padding:24px 16px 56px}
+h1{font-size:28px;line-height:1.15;margin:0 0 6px;font-weight:600}
+h2{font-size:20px;margin:36px 0 10px;font-weight:600}
+p{margin:0 0 14px;color:var(--pg-muted);max-width:72ch}
+.ctl{position:sticky;top:0;z-index:5;background:var(--pg-bg);border-bottom:1px solid var(--pg-line);margin:0 -16px 20px;padding:10px 16px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row + .row{margin-top:8px}
+.row output{font-weight:600;font-size:22px;min-width:3.2ch;font-variant-numeric:tabular-nums}
+.row input[type=range]{flex:1;min-width:160px;accent-color:var(--pg-accent)}
+button{font:inherit;font-size:14px;color:var(--pg-ink);background:var(--pg-surface);border:1px solid var(--pg-line);border-radius:999px;padding:6px 11px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--pg-accent);border-color:var(--pg-accent);color:var(--pg-on)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--pg-accent);outline-offset:2px}
+.device{margin:0;background:#17191E;border-radius:16px;padding:10px;max-width:820px}
+.viewport{position:relative;width:100%;aspect-ratio:5/3;overflow:hidden;border-radius:4px;background:#000}
+
+/* ---------- device UI: every value below is in device pixels on an 800x480 canvas ---------- */
+.screen{
+  --bg:#0F1B3D; --ink:#F5F1E6; --muted:#A3AFD6; --dim:#6474A6; --line:#3A4C8A; --now:#FFCF5C; --alert:#FF8F66;
+  --track:#2A3B78; --panel:#172552;
+  --s-yatsi:#2A3B78; --s-imsak:#7C6DC6; --s-gunes:#7FC4E8; --s-ogle:#D6EEFA; --s-ikindi:#F0994A; --s-aksam:#C2507A;
+  position:absolute;left:0;top:0;width:800px;height:480px;overflow:hidden;transform-origin:0 0;transform:scale(var(--k,1));
+  background:var(--bg);color:var(--ink);font-family:"Barlow","Segoe UI",system-ui,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.screen svg{display:block}
+.num{font-family:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;font-weight:600;font-variant-numeric:tabular-nums;font-variant-ligatures:none}
+.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* main screen */
+.top{position:absolute;left:24px;right:24px;top:14px;height:24px;display:flex;justify-content:space-between;align-items:center}
+.city{display:flex;align-items:center;gap:6px;font-size:18px;font-weight:600}
+.status{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.status.warn{color:var(--alert)}
+.clock{position:absolute;left:24px;top:44px;font-size:96px;line-height:1;white-space:nowrap}
+.clock .sec{font-size:46px;color:var(--muted);margin-left:3px}
+.date{position:absolute;left:24px;top:148px;font-size:21px;font-weight:500;white-space:nowrap}
+.hijri{position:absolute;left:24px;top:177px;font-size:17px;color:var(--muted);white-space:nowrap}
+.legend{position:absolute;left:24px;top:212px;display:flex;align-items:center;gap:7px;font-size:14px;color:var(--muted)}
+.legend i{width:22px;height:10px;border-radius:2px;background:repeating-linear-gradient(135deg,var(--muted) 0 2.5px,var(--bg) 2.5px 5px)}
+.hero{position:absolute;left:340px;right:24px;top:50px}
+.head{display:flex;align-items:center;justify-content:space-between;height:32px}
+.period{font-size:26px;font-weight:600;white-space:nowrap}
+.bounds{display:flex;align-items:center;gap:10px;font-size:25px}
+.track{display:block;width:132px;height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.track i{display:block;height:100%;width:0;background:var(--now)}
+.label{margin-top:14px;font-size:20px;line-height:1.2;color:var(--muted);white-space:nowrap}
+.count{font-size:114px;line-height:.98;color:var(--now);white-space:nowrap;margin-left:-3px}
+.soon .count{color:var(--alert)}
+.blank .count{color:var(--dim)}
+.gfx{position:absolute;left:0;top:0}
+.hr{font-size:13px;fill:var(--muted);font-family:"Barlow","Segoe UI",system-ui,Arial,sans-serif;font-variant-numeric:tabular-nums}
+.ld{fill:none;stroke:var(--line);stroke-width:1.5}
+.ld.cur{stroke:var(--now);stroke-width:2.5}
+.cols{position:absolute;left:24px;right:24px;top:336px;height:128px;display:grid;grid-template-columns:repeat(6,1fr)}
+.col{padding-top:9px;text-align:center;border-radius:12px}
+.col .nm{font-size:19px;font-weight:500;line-height:1.2}
+.col .tm{font-size:48px;line-height:1.12;white-space:nowrap}
+.col .st{font-size:15px;line-height:1.2;color:var(--muted);white-space:nowrap}
+.col.past{color:var(--dim)}
+.col.cur{background:var(--now);color:var(--bg)}
+.col.cur .st{color:var(--bg);font-weight:600}
+.col.next .st{color:var(--now)}
+.calc .col .tm{font-size:44px;line-height:1.22}
+.calc .col .tm::before{content:"≈";font-size:22px;margin-right:3px;vertical-align:8px;opacity:.75}
+
+/* setup, connecting, status overlay */
+.t26{font-size:26px;font-weight:600;line-height:1.2}
+.t20{font-size:20px;line-height:1.3}
+.t17{font-size:17px;line-height:1.35}
+.t15{font-size:15px;line-height:1.3}
+.mut{color:var(--muted)}
+.big{font-size:38px;line-height:1.1;color:var(--now);white-space:nowrap}
+.steps{position:absolute;left:24px;top:92px;width:450px;margin:0;padding:0;list-style:none}
+.steps li{display:grid;grid-template-columns:36px 1fr;gap:12px;margin-bottom:20px}
+.steps b{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;border:2px solid var(--line);font-size:19px;font-weight:600}
+.kv{display:grid;grid-template-columns:76px 1fr;align-items:baseline;row-gap:2px;margin-top:8px}
+.qr{position:absolute;right:24px;top:86px;width:268px;height:268px;border-radius:14px;background:var(--ink);padding:14px}
+.qr svg{width:100%;height:100%}
+.qrcap{position:absolute;right:24px;top:364px;width:268px;text-align:center}
+.foot{position:absolute;left:24px;right:24px;bottom:18px}
+.center{position:absolute;left:0;right:0;top:150px;text-align:center}
+.center > * + *{margin-top:14px}
+.ovl{position:absolute;left:100px;top:52px;width:600px;height:376px;border-radius:16px;background:var(--panel);border:1px solid var(--line);padding:22px 26px}
+.ovl dl{display:grid;grid-template-columns:150px 1fr;row-gap:9px;margin:14px 0 0;width:400px}
+.ovl dt{font-size:15px;color:var(--muted);line-height:1.5}
+.ovl dd{margin:0;font-size:18px;line-height:1.25}
+.ovl .qr2{position:absolute;right:24px;top:70px;width:132px;height:132px;border-radius:10px;background:var(--ink);padding:8px}
+.ovl .qr2 svg{width:100%;height:100%}
+.ovl .qr2cap{position:absolute;right:24px;top:208px;width:132px;text-align:center}
+.ovl .hint{position:absolute;left:26px;right:26px;bottom:18px}
+.dimmed > :not(.ovl){opacity:.28}
+</style>
+</head>
+<body>
+<main>
+  <h1>Namaz Vakti Panel: UI reference</h1>
+  <p>Design A (“Şerit”) at 800×480 device pixels. Everything inside the dark frames is the device UI; the controls are only for exploring states. UI text is Turkish by design. Pixel values in <code>docs/02-ui-spec.md</code> are taken from this file.</p>
+
+  <div class="ctl">
+    <div class="row">
+      <output id="t">00:00</output>
+      <input type="range" id="r" min="0" max="1439" step="1" value="872" aria-label="Simulated time of day">
+      <span id="jumps" class="row"></span>
+    </div>
+    <div class="row" id="variants"></div>
+  </div>
+
+  <h2>Main screen</h2>
+  <figure class="device"><div class="viewport">
+    <div class="screen" id="main">
+      <div class="top">
+        <span class="city"><svg class="ic" viewBox="0 0 16 16"><use href="#i-pin"/></svg><span>İstanbul</span></span>
+        <span class="status" id="status"><svg class="ic" viewBox="0 0 16 16"><use id="status-ic" href="#i-wifi"/></svg><span id="status-t"></span></span>
+      </div>
+      <div class="clock num"><span id="hm"></span><span class="sec" id="ss"></span></div>
+      <div class="date" id="date"></div>
+      <div class="hijri" id="hijri"></div>
+      <div class="legend" id="legend"><i></i><span>Kerahat vakti</span></div>
+      <div class="hero">
+        <div class="head">
+          <span class="period" id="period"></span>
+          <span class="bounds num" id="bounds"><span id="b0"></span><span class="track"><i id="prog"></i></span><span id="b1"></span></span>
+        </div>
+        <div class="label" id="label"></div>
+        <div class="count num" id="count"></div>
+      </div>
+      <svg class="gfx" id="gfx" width="800" height="480" viewBox="0 0 800 480" aria-hidden="true"></svg>
+      <div class="cols" id="cols"></div>
+    </div>
+  </div></figure>
+
+  <h2>Setup (access point mode)</h2>
+  <figure class="device"><div class="viewport">
+    <div class="screen" id="setup">
+      <div style="position:absolute;left:24px;top:18px">
+        <div class="t26">Kurulum</div>
+        <div class="t17 mut" style="margin-top:2px">Wi-Fi ayarını telefonundan yap</div>
+      </div>
+      <ol class="steps">
+        <li><b>1</b><div>
+          <div class="t17">Telefonun kamerasıyla QR kodu okut ya da Wi-Fi ayarlarından bu ağa bağlan:</div>
+          <div class="kv"><span class="t15 mut">Ağ adı</span><span class="big num">NamazVakti-7F3A</span>
+          <span class="t15 mut">Şifre</span><span class="big num">4827 1935</span></div>
+        </div></li>
+        <li><b>2</b><div class="t17">Açılan sayfada evdeki Wi-Fi ağını seç, şifresini yaz, ilini ve ilçeni seç.</div></li>
+        <li><b>3</b><div class="t17">Sayfa kendiliğinden açılmazsa tarayıcıya <span class="num" style="font-size:21px;color:var(--now)">192.168.4.1</span> yaz.</div></li>
+      </ol>
+      <div class="qr"><svg viewBox="-2 -2 33 33" shape-rendering="crispEdges"><path fill="#0F1B3D" d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM9 0h1v1h-1zM11 0h1v1h-1zM13 0h1v1h-1zM16 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM26 0h1v1h-1zM27 0h1v1h-1zM28 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM11 1h1v1h-1zM14 1h1v1h-1zM15 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM19 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM15 3h1v1h-1zM18 3h1v1h-1zM19 3h1v1h-1zM20 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM19 4h1v1h-1zM20 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM13 5h1v1h-1zM15 5h1v1h-1zM18 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM28 6h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM12 7h1v1h-1zM13 7h1v1h-1zM14 7h1v1h-1zM16 7h1v1h-1zM17 7h1v1h-1zM19 7h1v1h-1zM20 7h1v1h-1zM0 8h1v1h-1zM3 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM11 8h1v1h-1zM12 8h1v1h-1zM15 8h1v1h-1zM21 8h1v1h-1zM23 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM7 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM19 9h1v1h-1zM20 9h1v1h-1zM21 9h1v1h-1zM22 9h1v1h-1zM24 9h1v1h-1zM28 9h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM6 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM21 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM27 10h1v1h-1zM28 10h1v1h-1zM0 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM11 11h1v1h-1zM12 11h1v1h-1zM13 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM18 11h1v1h-1zM21 11h1v1h-1zM22 11h1v1h-1zM23 11h1v1h-1zM26 11h1v1h-1zM28 11h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM10 12h1v1h-1zM11 12h1v1h-1zM14 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM18 12h1v1h-1zM22 12h1v1h-1zM25 12h1v1h-1zM0 13h1v1h-1zM1 13h1v1h-1zM8 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM16 13h1v1h-1zM17 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM22 13h1v1h-1zM23 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM26 13h1v1h-1zM27 13h1v1h-1zM0 14h1v1h-1zM1 14h1v1h-1zM6 14h1v1h-1zM8 14h1v1h-1zM9 14h1v1h-1zM12 14h1v1h-1zM13 14h1v1h-1zM14 14h1v1h-1zM17 14h1v1h-1zM19 14h1v1h-1zM21 14h1v1h-1zM22 14h1v1h-1zM26 14h1v1h-1zM27 14h1v1h-1zM28 14h1v1h-1zM2 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM10 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM17 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM26 15h1v1h-1zM1 16h1v1h-1zM2 16h1v1h-1zM3 16h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM9 16h1v1h-1zM11 16h1v1h-1zM13 16h1v1h-1zM15 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM21 16h1v1h-1zM22 16h1v1h-1zM23 16h1v1h-1zM25 16h1v1h-1zM27 16h1v1h-1zM2 17h1v1h-1zM9 17h1v1h-1zM10 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM14 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM20 17h1v1h-1zM26 17h1v1h-1zM27 17h1v1h-1zM28 17h1v1h-1zM0 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM9 18h1v1h-1zM14 18h1v1h-1zM16 18h1v1h-1zM17 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM21 18h1v1h-1zM22 18h1v1h-1zM23 18h1v1h-1zM24 18h1v1h-1zM26 18h1v1h-1zM28 18h1v1h-1zM2 19h1v1h-1zM4 19h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM14 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM25 19h1v1h-1zM0 20h1v1h-1zM5 20h1v1h-1zM6 20h1v1h-1zM7 20h1v1h-1zM10 20h1v1h-1zM12 20h1v1h-1zM15 20h1v1h-1zM18 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM8 21h1v1h-1zM10 21h1v1h-1zM11 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM17 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM0 22h1v1h-1zM1 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM9 22h1v1h-1zM12 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM27 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM26 23h1v1h-1zM0 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM12 24h1v1h-1zM16 24h1v1h-1zM18 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM26 24h1v1h-1zM27 24h1v1h-1zM28 24h1v1h-1zM0 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM8 25h1v1h-1zM11 25h1v1h-1zM15 25h1v1h-1zM16 25h1v1h-1zM17 25h1v1h-1zM19 25h1v1h-1zM21 25h1v1h-1zM22 25h1v1h-1zM24 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM0 26h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM9 26h1v1h-1zM10 26h1v1h-1zM12 26h1v1h-1zM14 26h1v1h-1zM18 26h1v1h-1zM19 26h1v1h-1zM21 26h1v1h-1zM22 26h1v1h-1zM23 26h1v1h-1zM25 26h1v1h-1zM28 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM10 27h1v1h-1zM12 27h1v1h-1zM13 27h1v1h-1zM15 27h1v1h-1zM18 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM24 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM10 28h1v1h-1zM11 28h1v1h-1zM12 28h1v1h-1zM17 28h1v1h-1zM18 28h1v1h-1zM19 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM26 28h1v1h-1z"/></svg></div>
+      <div class="qrcap t15 mut">Bu ağa bağlanmak için okut</div>
+      <div class="foot t17 mut" id="setup-foot">Telefonun bağlanması bekleniyor</div>
+    </div>
+  </div></figure>
+
+  <h2>Connecting</h2>
+  <figure class="device"><div class="viewport">
+    <div class="screen" id="connecting">
+      <div class="center">
+        <div class="t26">Wi-Fi ağına bağlanılıyor</div>
+        <div class="big num">EvAgi_2.4G</div>
+        <div class="t17 mut">Bu işlem yarım dakika kadar sürebilir.</div>
+      </div>
+    </div>
+  </div></figure>
+
+  <h2>Status overlay (tap anywhere on the main screen)</h2>
+  <figure class="device"><div class="viewport">
+    <div class="screen dimmed" id="overlay">
+      <div class="top">
+        <span class="city"><svg class="ic" viewBox="0 0 16 16"><use href="#i-pin"/></svg><span>İstanbul</span></span>
+        <span class="status"><svg class="ic" viewBox="0 0 16 16"><use href="#i-wifi"/></svg><span>Son güncelleme 03:00</span></span>
+      </div>
+      <div class="clock num">14:32<span class="sec">:07</span></div>
+      <div class="ovl">
+        <div class="t26">Cihaz durumu</div>
+        <dl>
+          <dt>Konum</dt><dd>İstanbul, Sultanbeyli</dd>
+          <dt>Vakit kaynağı</dt><dd>Diyanet (imsakiyem)</dd>
+          <dt>Son güncelleme</dt><dd>17.11.2026 03:00</dd>
+          <dt>Kayıtlı son gün</dt><dd>31.12.2026</dd>
+          <dt>Wi-Fi</dt><dd>EvAgi_2.4G, iyi</dd>
+          <dt>Ayar adresi</dt><dd>192.168.1.37</dd>
+          <dt>Ayar PIN’i</dt><dd class="num" style="font-size:22px;color:var(--now)">482 913</dd>
+          <dt>Sürüm</dt><dd>1.0.0</dd>
+        </dl>
+        <div class="qr2"><svg viewBox="-2 -2 29 29" shape-rendering="crispEdges"><path fill="#0F1B3D" d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM11 0h1v1h-1zM13 0h1v1h-1zM14 0h1v1h-1zM16 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM20 0h1v1h-1zM21 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM14 1h1v1h-1zM15 1h1v1h-1zM18 1h1v1h-1zM24 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM9 2h1v1h-1zM12 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM18 2h1v1h-1zM20 2h1v1h-1zM21 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM15 3h1v1h-1zM16 3h1v1h-1zM18 3h1v1h-1zM20 3h1v1h-1zM21 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM20 4h1v1h-1zM21 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM13 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM18 5h1v1h-1zM24 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM19 6h1v1h-1zM20 6h1v1h-1zM21 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM11 7h1v1h-1zM13 7h1v1h-1zM14 7h1v1h-1zM0 8h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM9 8h1v1h-1zM11 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM15 8h1v1h-1zM16 8h1v1h-1zM20 8h1v1h-1zM23 8h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM5 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM10 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM16 9h1v1h-1zM24 9h1v1h-1zM0 10h1v1h-1zM1 10h1v1h-1zM3 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM17 10h1v1h-1zM22 10h1v1h-1zM23 10h1v1h-1zM24 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM4 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM12 11h1v1h-1zM15 11h1v1h-1zM18 11h1v1h-1zM23 11h1v1h-1zM1 12h1v1h-1zM2 12h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM15 12h1v1h-1zM20 12h1v1h-1zM21 12h1v1h-1zM23 12h1v1h-1zM24 12h1v1h-1zM2 13h1v1h-1zM5 13h1v1h-1zM9 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM15 13h1v1h-1zM16 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM21 13h1v1h-1zM24 13h1v1h-1zM0 14h1v1h-1zM2 14h1v1h-1zM3 14h1v1h-1zM4 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM9 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM12 14h1v1h-1zM14 14h1v1h-1zM15 14h1v1h-1zM18 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM24 14h1v1h-1zM1 15h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM8 15h1v1h-1zM10 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM14 15h1v1h-1zM16 15h1v1h-1zM19 15h1v1h-1zM21 15h1v1h-1zM23 15h1v1h-1zM0 16h1v1h-1zM3 16h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM14 16h1v1h-1zM16 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM20 16h1v1h-1zM8 17h1v1h-1zM10 17h1v1h-1zM11 17h1v1h-1zM14 17h1v1h-1zM15 17h1v1h-1zM16 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM23 17h1v1h-1zM24 17h1v1h-1zM0 18h1v1h-1zM1 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM10 18h1v1h-1zM13 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM22 18h1v1h-1zM23 18h1v1h-1zM24 18h1v1h-1zM0 19h1v1h-1zM6 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM11 19h1v1h-1zM16 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM23 19h1v1h-1zM0 20h1v1h-1zM2 20h1v1h-1zM3 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM8 20h1v1h-1zM10 20h1v1h-1zM12 20h1v1h-1zM15 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM19 20h1v1h-1zM20 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM0 21h1v1h-1zM2 21h1v1h-1zM3 21h1v1h-1zM4 21h1v1h-1zM6 21h1v1h-1zM10 21h1v1h-1zM11 21h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM15 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM18 21h1v1h-1zM20 21h1v1h-1zM23 21h1v1h-1zM0 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM6 22h1v1h-1zM8 22h1v1h-1zM11 22h1v1h-1zM12 22h1v1h-1zM14 22h1v1h-1zM15 22h1v1h-1zM17 22h1v1h-1zM18 22h1v1h-1zM19 22h1v1h-1zM21 22h1v1h-1zM24 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM12 23h1v1h-1zM13 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM16 23h1v1h-1zM17 23h1v1h-1zM20 23h1v1h-1zM22 23h1v1h-1zM23 23h1v1h-1zM0 24h1v1h-1zM1 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM5 24h1v1h-1zM6 24h1v1h-1zM8 24h1v1h-1zM11 24h1v1h-1zM14 24h1v1h-1zM15 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM18 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1z"/></svg></div>
+        <div class="qr2cap t15 mut">Ayar sayfası</div>
+        <div class="hint t15 mut">Kapatmak için dokun. Kurulumu baştan yapmak için 5 saniye basılı tut.</div>
+      </div>
+    </div>
+  </div></figure>
+</main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-pin"><path d="M8 1.6a4.4 4.4 0 0 0-4.4 4.4c0 3.1 4.4 8.4 4.4 8.4s4.4-5.3 4.4-8.4A4.4 4.4 0 0 0 8 1.6z"/><circle cx="8" cy="6" r="1.3"/></g>
+  <g id="i-wifi"><path d="M1.8 6.2a9.2 9.2 0 0 1 12.4 0M4.1 8.8a5.9 5.9 0 0 1 7.8 0M6.3 11.3a2.7 2.7 0 0 1 3.4 0"/><circle cx="8" cy="13.4" r=".6"/></g>
+  <g id="i-wifioff"><path d="M1.8 6.2a9.2 9.2 0 0 1 12.4 0M4.1 8.8a5.9 5.9 0 0 1 7.8 0M6.3 11.3a2.7 2.7 0 0 1 3.4 0M2.4 1.6l11.2 12.8"/><circle cx="8" cy="13.4" r=".6"/></g>
+  <g id="i-approx"><path d="M2.5 6.4c1.8-2 3.6-2 5.5 0s3.7 2 5.5 0M2.5 10.6c1.8-2 3.6-2 5.5 0s3.7 2 5.5 0"/></g>
+</defs></svg>
+
+<script>
+(function(){
+'use strict';
+/* ---------- sample data: Istanbul, 17 November (illustrative, not authoritative) ---------- */
+var D = {
+  names:['İmsak','Güneş','Öğle','İkindi','Akşam','Yatsı'],
+  keys:['imsak','gunes','ogle','ikindi','aksam','yatsi'],
+  dative:['İmsaka','Güneşe','Öğleye','İkindiye','Akşama','Yatsıya'],
+  period:['İmsak vakti','Kuşluk vakti','Öğle vakti','İkindi vakti','Akşam vakti','Yatsı vakti'],
+  times:['06:16','07:46','12:54','15:27','17:51','19:14'],
+  prevYatsi:'19:15', nextImsak:'06:17',
+  kerahatMin:45, soonMin:15, enteredMin:5
+};
+var DAY=86400;
+function sec(s){var a=s.split(':');return (+a[0])*3600+(+a[1])*60;}
+function p2(n){return String(n).padStart(2,'0');}
+function hm(s){s=((s%DAY)+DAY)%DAY;return p2(Math.floor(s/3600))+':'+p2(Math.floor(s%3600/60));}
+function hms(s){return p2(Math.floor(s/3600))+':'+p2(Math.floor(s%3600/60))+':'+p2(s%60);}
+function dur(s){var m=Math.floor(s/60);if(m<1)return '1 dk’dan az';var h=Math.floor(m/60),r=m%60;return h?(r?h+' sa '+r+' dk':h+' sa'):r+' dk';}
+function $(id){return document.getElementById(id);}
+function f(n){return (+n).toFixed(1);}
+var T=D.times.map(sec),PY=sec(D.prevYatsi),NI=sec(D.nextImsak),K=D.kerahatMin*60;
+var KER=[[T[1],T[1]+K],[T[2]-K,T[2]],[T[4]-K,T[4]]];
+
+/* ---------- the model every screen state derives from ---------- */
+function compute(now){
+  var i=-1,k;for(k=0;k<6;k++)if(now>=T[k])i=k;
+  var cur,start,end,nxt;
+  if(i===-1){cur=5;start=PY-DAY;end=T[0];nxt=0;}
+  else if(i===5){cur=5;start=T[5];end=NI+DAY;nxt=0;}
+  else{cur=i;start=T[i];end=T[i+1];nxt=i+1;}
+  return {now:now,i:i,cur:cur,nxt:nxt,start:start,end:end,remain:end-now,elapsed:now-start,pct:(now-start)/(end-start)};
+}
+function statuses(st){
+  return T.map(function(t,k){
+    if(st.i===5&&k===0)return {cls:'next',time:hm(NI),note:'yarın'};
+    if(st.i>=0&&k===st.cur)return {cls:'cur',time:hm(t),note:st.elapsed<D.enteredMin*60?'vakit girdi':'şu an'};
+    if(t<=st.now)return {cls:'past',time:hm(t),note:''};
+    return {cls:(k===st.nxt?'next':'later'),time:hm(t),note:dur(t-st.now)+' sonra'};
+  });
+}
+
+/* ---------- geometry ---------- */
+var X0=24,W=752;
+function X(t){return X0+t/DAY*W;}
+var SEG=[[0,T[0],5],[T[0],T[1],0],[T[1],T[2],1],[T[2],T[3],2],[T[3],T[4],3],[T[4],T[5],4],[T[5],DAY,5]];
+
+function build(){
+  var s='<defs><clipPath id="clip"><rect x="'+X0+'" y="264" width="'+W+'" height="30" rx="7"/></clipPath>'+
+        '<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="6" fill="#0F1B3D"/></pattern></defs>';
+  var h,x;
+  for(h=0;h<=24;h++){
+    x=X(h*3600);var big=h%3===0;
+    s+='<line x1="'+f(x)+'" x2="'+f(x)+'" y1="'+(big?254:257)+'" y2="260" stroke="#6474A6" stroke-width="'+(big?1.5:1)+'"/>';
+    if(big)s+='<text class="hr" x="'+f(x)+'" y="248" text-anchor="middle">'+p2(h)+'</text>';
+  }
+  s+='<g clip-path="url(#clip)"><rect id="nodata-bar" x="'+X0+'" y="264" width="'+W+'" height="30" style="fill:var(--s-yatsi)"/><g id="segs">';
+  SEG.forEach(function(g){s+='<rect x="'+f(X(g[0]))+'" y="264" width="'+f(X(g[1])-X(g[0]))+'" height="30" style="fill:var(--s-'+D.keys[g[2]]+')"/>';});
+  s+='<g id="ker">';
+  KER.forEach(function(g){s+='<rect x="'+f(X(g[0]))+'" y="264" width="'+f(X(g[1])-X(g[0]))+'" height="30" fill="url(#hatch)"/>';});
+  s+='</g></g></g><g id="leaders">';
+  T.forEach(function(t,k){
+    var x=X(t),c=X0+(k+.5)*W/6;
+    s+='<line x1="'+f(x)+'" x2="'+f(x)+'" y1="264" y2="294" stroke="#0F1B3D" stroke-width="2"/>';
+    s+='<polyline class="ld" id="ld'+k+'" points="'+f(x)+',294 '+f(x)+',304 '+f(c)+',325 '+f(c)+',334"/>';
+  });
+  s+='</g><g id="nowg"><line y1="259" y2="299" stroke="#0F1B3D" stroke-width="9"/><line y1="259" y2="299" stroke="#FFCF5C" stroke-width="3"/><path d="M-7 251H7L0 261Z" fill="#FFCF5C" stroke="#0F1B3D" stroke-width="2" stroke-linejoin="round"/></g>';
+  $('gfx').innerHTML=s;
+  var c='';
+  D.names.forEach(function(n,k){c+='<div class="col" id="col'+k+'"><div class="nm">'+n+'</div><div class="tm num"></div><div class="st"></div></div>';});
+  $('cols').innerHTML=c;
+}
+
+var VARIANTS={
+  ok:      {label:'Normal',          icon:'#i-wifi',    warn:false, text:'Son güncelleme 03:00'},
+  offline: {label:'Offline, cached', icon:'#i-wifioff', warn:false, text:'Çevrimdışı, kayıtlı vakitler kullanılıyor'},
+  ending:  {label:'Cache ending',    icon:'#i-wifioff', warn:true,  text:'Kayıtlı vakitler 5 gün sonra bitiyor'},
+  calc:    {label:'Calculated',      icon:'#i-approx',  warn:true,  text:'Yaklaşık vakitler, hesaplama ile'},
+  notime:  {label:'Time not set',    icon:'#i-wifioff', warn:true,  text:'Saat alınamadı, Wi-Fi bekleniyor'},
+  nodata:  {label:'No data',         icon:'#i-wifioff', warn:true,  text:'Vakitler alınamadı'}
+};
+var variant='ok';
+
+function render(now){
+  var v=VARIANTS[variant],root=$('main'),st=compute(now),ss=statuses(st);
+  var noTime=variant==='notime',noData=variant==='nodata',blank=noTime||noData;
+  root.className='screen'+(variant==='calc'?' calc':'')+(blank?' blank':'')+(!blank&&st.remain<=D.soonMin*60?' soon':'');
+  $('status').className='status'+(v.warn?' warn':'');
+  $('status-ic').setAttribute('href',v.icon);
+  $('status-t').textContent=v.text;
+
+  $('hm').textContent=noTime?'--:--':hm(now);
+  $('ss').textContent=noTime?'':':'+p2(now%60);
+  $('date').textContent=noTime?'Saat bekleniyor':'17 Kasım 2026 Salı';
+  $('hijri').textContent=noTime?'':'7 Cemaziyelahir 1448';
+  $('legend').style.display=noData?'none':'';
+
+  $('period').textContent=noTime?'Saat eşitleniyor':noData?'Vakitler alınamadı':D.period[st.cur];
+  $('bounds').style.visibility=blank?'hidden':'visible';
+  $('b0').textContent=hm(st.start);$('b1').textContent=hm(st.end);
+  $('prog').style.width=f(st.pct*100)+'%';
+  $('label').textContent=noTime?'Wi-Fi bağlantısı bekleniyor':noData?'Wi-Fi ve konum ayarını kontrol edin':D.dative[st.nxt]+' kalan süre';
+  $('count').textContent=blank?'--:--:--':hms(st.remain);
+
+  $('segs').style.display=noData?'none':'';
+  $('leaders').style.display=noData?'none':'';
+  $('nowg').style.display=noTime?'none':'';
+  $('nowg').setAttribute('transform','translate('+f(X(now))+',0)');
+  ss.forEach(function(s,k){
+    var el=$('col'+k),cls=s.cls,time=s.time,note=s.note;
+    if(noTime){cls='later';note='';time=hm(T[k]);}
+    if(noData){cls='past';note='';time='--:--';}
+    el.className='col '+cls;
+    el.children[1].textContent=time;
+    el.children[2].textContent=note;
+    $('ld'+k).setAttribute('class','ld'+(cls==='cur'?' cur':''));
+  });
+}
+
+/* ---------- controls ---------- */
+var simMin=14*60+32,simSec=7;
+function draw(){ $('t').textContent=hm(simMin*60); $('r').value=simMin; render(simMin*60+simSec); }
+window.setSim=function(min,s){simMin=min;simSec=s||0;draw();};
+window.setVariant=function(v){variant=v;document.querySelectorAll('#variants button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.v===v);});draw();};
+$('r').addEventListener('input',function(){simMin=+this.value;simSec=0;draw();});
+[['Gece','03:30'],['İmsak','06:50'],['Kuşluk','10:00'],['Vakit girdi','12:55'],['Öğle','14:32'],['İkindi','16:20'],['Az kaldı','17:42'],['Akşam','18:20'],['Yatsı','21:30']].forEach(function(j){
+  var b=document.createElement('button');b.type='button';b.textContent=j[0]+' '+j[1];
+  b.addEventListener('click',function(){window.setSim(sec(j[1])/60,j[1]==='14:32'?7:0);});
+  $('jumps').appendChild(b);
+});
+Object.keys(VARIANTS).forEach(function(k){
+  var b=document.createElement('button');b.type='button';b.dataset.v=k;b.textContent=VARIANTS[k].label;b.setAttribute('aria-pressed',k==='ok');
+  b.addEventListener('click',function(){window.setVariant(k);});
+  $('variants').appendChild(b);
+});
+function fit(v){v.style.setProperty('--k',v.clientWidth/800);}
+var vps=document.querySelectorAll('.viewport');
+if('ResizeObserver' in window){var ro=new ResizeObserver(function(es){es.forEach(function(e){fit(e.target);});});vps.forEach(function(v){ro.observe(v);});}
+vps.forEach(fit);
+build();draw();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Host UI harness output
+out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Claude Code machine-local settings
+.claude/settings.local.json
+
+# Secrets must never be committed (CLAUDE.md, SEC-04)
+*.secret
+secrets.ini
+.env
