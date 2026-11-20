@@ -1,0 +1,11 @@
+{
+  "name": "nvp_core",
+  "version": "0.0.0",
+  "description": "Namaz Vakti Panel core: pure C++ (no Arduino, ESP-IDF or LVGL headers).",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src",
+    "includeDir": "src"
+  }
+}

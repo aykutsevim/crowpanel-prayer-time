@@ -80,7 +80,7 @@ The model number is printed on the back label and silk-screen (`DIS08070H` or `D
 | Layer | Recommendation | Notes |
 |---|---|---|
 | Build | PlatformIO, driven from the command line | lets Claude Code build, flash, monitor and run host tests with one tool |
-| Framework | Arduino core for ESP32 | PlatformIO’s official `espressif32` platform ships the 2.x core; the 3.x core is available through the community-maintained `pioarduino` platform (checked 20 November 2026). The vendor’s examples for the basic board were written against the 2.x core. Choose in Slice 0/1: start with whichever line the vendor’s current PlatformIO example for this board uses, and pin the platform to an exact release, never to a moving `stable` link. |
+| Framework | Arduino core for ESP32 | **Corrected in Slice 0 (20 November 2026):** PlatformIO’s official `espressif32` platform ships the 3.x core from release 8.0.0 (Arduino 3.3.12); the 7.x line ships 2.0.17. The community `pioarduino` platform also ships 3.x. The vendor’s current PlatformIO example for the basic board (`example/V3.0/PlatformIO70`) uses pioarduino with Arduino core **3.3.8**, not 2.x. The project pins `espressif32@8.0.0`; see `docs/decisions/0001-platform.md`. Always pin an exact release, never a moving `stable` link. |
 | Panel driver | start from the vendor’s verified LovyanGFX `Bus_RGB` / `Panel_RGB` configuration above | known-good pins and timing for this exact board |
 | Graphics | LVGL, latest stable major at planning time, 16-bit colour | UI code must depend on LVGL only, never on the panel driver |
 | Touch | GT911 driver compatible with the chosen stack | plus the PCA9557 sequence on revision 3.0 |
