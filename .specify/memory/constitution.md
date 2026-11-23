@@ -1,5 +1,11 @@
 <!--
-Sync Impact Report
+Sync Impact Report (1.1.1, 2026-11-23)
+- Version change: 1.1.0 → 1.1.1 (PATCH: wording only)
+- Reason: the project documents moved from `handover/` to `docs/` (repository restructure).
+  References to `handover/` and "handover documents" now name `docs/` and "project documents".
+- Principles: unchanged. Templates: no reference to the folder; no edit needed.
+
+Sync Impact Report (1.1.0)
 - Version change: 1.0.0 → 1.1.0 (MINOR: guidance materially changed for the hardware target)
 - Reason: owner decisions recorded in specs/001-silent-board-bringup/spec.md (2026-11-20):
   the target board is the CrowPanel Advance 7.0" DIS02170A rev V1.4; the basic board is no
@@ -16,7 +22,7 @@ Sync Impact Report
   ✅ .specify/templates/tasks-template.md: no edit needed
   ✅ .specify/templates/checklist-template.md: no edit needed
   ✅ CLAUDE.md: names "Elecrow CrowPanel 7.0\", 800×480" only; still accurate, no edit needed
-- Deferred TODOs: handover/docs/05-architecture.md §1, §5 and §10 are updated later in the
+- Deferred TODOs: docs/specification/05-architecture.md §1, §5 and §10 are updated later in the
   same branch (FR-033, tasks.md Phase 10).
 -->
 
@@ -24,7 +30,7 @@ Sync Impact Report
 
 A silent ESP32-S3 touch display (Elecrow CrowPanel 7.0", 800×480) that shows Diyanet prayer times
 for one district in Türkiye. This constitution binds every specification, plan, task and line of
-code in this repository. `CLAUDE.md` and `handover/` give the detail; where they conflict with this
+code in this repository. `CLAUDE.md` and `docs/` give the detail; where they conflict with this
 document, this document wins until it is amended.
 
 ## Core Principles
@@ -63,7 +69,7 @@ references 10 to 14.
 
 ### III. The Approved Design Is the Contract (NON-NEGOTIABLE)
 
-`handover/docs/02-ui-spec.md` and the reference renders in `handover/design/screens/` define the
+`docs/specification/02-ui-spec.md` and the reference renders in `docs/design/screens/` define the
 UI. They are implemented, not restyled, rearranged or re-worded.
 
 - On-screen strings are Turkish and copied byte-for-byte, including U+2019 and U+2026.
@@ -139,10 +145,10 @@ tests run on the host with a failing fake file system.
 
 ### X. Simplicity and Scope
 
-- One location in Türkiye, Turkish UI, and the features in `handover/docs/01-product-brief.md`;
+- One location in Türkiye, Turkish UI, and the features in `docs/specification/01-product-brief.md`;
   nothing more.
 - Prefer the simplest design that satisfies the numbered requirements in
-  `handover/docs/03-functional-spec.md`.
+  `docs/specification/03-functional-spec.md`.
 - Specs, tasks, tests and commit messages cite requirement ids (for example `ENG-03`, `DATA-05`).
 
 Test: every task in `tasks.md` names at least one requirement id or spec section.
@@ -160,14 +166,14 @@ Test: every task in `tasks.md` names at least one requirement id or spec section
 
 ## Development Workflow and Quality Gates
 
-- Work follows Spec Kit, one slice per feature branch, in the order of `handover/docs/06-roadmap.md`,
-  using the prompts in `handover/prompts/`. A slice does not start before the previous one meets its
+- Work follows Spec Kit, one slice per feature branch, in the order of `docs/specification/06-roadmap.md`,
+  using the prompts in `docs/development/prompts/`. A slice does not start before the previous one meets its
   "done when".
 - Definition of done for every slice (`05-architecture.md` §11): `/speckit-analyze` has no open
   critical findings; host tests, silence check and firmware build pass within budget; affected UI
   snapshots are reviewed; the owner checklist is recorded; `/speckit-converge` reports converged;
-  README and handover documents are corrected with anything learned.
-- Commits are small and build. When a handover document turns out to be wrong, it is corrected in
+  README and the project documents in `docs/` are corrected with anything learned.
+- Commits are small and build. When a project document turns out to be wrong, it is corrected in
   the same branch.
 
 ## Governance
@@ -182,4 +188,4 @@ Test: every task in `tasks.md` names at least one requirement id or spec section
 - Versioning follows semantic versioning: MAJOR for removing or redefining a principle, MINOR for
   adding a principle or materially expanding guidance, PATCH for clarifications.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-23
+**Version**: 1.1.1 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-23

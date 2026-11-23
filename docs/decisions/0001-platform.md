@@ -20,7 +20,7 @@ display stack requires it.
 
 ## Consequences
 
-- **Correction to `handover/docs/05-architecture.md` §3**: the vendor's current examples use the
+- **Correction to `docs/specification/05-architecture.md` §3**: the vendor's current examples use the
   3.x core, not 2.x, and the official PlatformIO platform now ships 3.x as well (from 8.0.0).
 - pioarduino `55.03.312-1` (the vendor's platform family) was tried first; on this machine with
   PlatformIO Core 6.2.0 it failed while installing its Python dependencies and then reported

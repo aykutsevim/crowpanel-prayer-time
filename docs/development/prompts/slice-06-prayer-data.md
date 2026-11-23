@@ -1,6 +1,6 @@
 # Slice 6: Real prayer times
 
-Goal: today’s Diyanet-published times for the chosen district, fetched once and kept on the device. See `handover/docs/06-roadmap.md`.
+Goal: today’s Diyanet-published times for the chosen district, fetched once and kept on the device. See `docs/specification/06-roadmap.md`.
 
 This slice introduces one provider and the store. Scheduling and fallbacks come in Slice 7; here a refresh happens after setup, at boot when needed, and on a developer command.
 
@@ -11,7 +11,7 @@ This slice introduces one provider and the store. Scheduling and fallbacks come 
 ```text
 /speckit.specify Real prayer times for the Namaz Vakti Panel: first data source and on-device store.
 
-Read first: handover/docs/03-functional-spec.md §6 and §7; handover/docs/04-data-sources.md §1 to §4, §7, §8, §10, §13; handover/docs/02-ui-spec.md §6 (states ok, offline, no_data) and reference renders 01, 10 and 14.
+Read first: docs/specification/03-functional-spec.md §6 and §7; docs/specification/04-data-sources.md §1 to §4, §7, §8, §10, §13; docs/specification/02-ui-spec.md §6 (states ok, offline, no_data) and reference renders 01, 10 and 14.
 
 Why: until now the screen has shown a sample day. The product's purpose is to show the times Diyanet publishes for the owner's district, and to keep showing them when the network is not there. That needs a trustworthy fetch and a store that survives restarts and power cuts.
 
@@ -50,7 +50,7 @@ Suggested answers if asked: success means today’s record and everything the pr
 /speckit.plan Plan real prayer times: first provider and store.
 
 Constraints and research:
-- Do the live verification in handover/docs/04-data-sources.md §13 items 1, 3 and 6 now, for my configured district, and write the results into research.md: fetch the provider's API description and check its version, call its version 2 times endpoint for a date range and its version 1 range endpoint, record the real responses as test fixtures under test/fixtures (trim only by cutting whole records), decide per 04-data-sources.md §3.1 which is primary and which is the fallback, and diff 30 days against the second mirror. If the mirrors disagree, stop and tell me before planning further. Correct 04-data-sources.md wherever the live service differs from it.
+- Do the live verification in docs/specification/04-data-sources.md §13 items 1, 3 and 6 now, for my configured district, and write the results into research.md: fetch the provider's API description and check its version, call its version 2 times endpoint for a date range and its version 1 range endpoint, record the real responses as test fixtures under test/fixtures (trim only by cutting whole records), decide per 04-data-sources.md §3.1 which is primary and which is the fallback, and diff 30 days against the second mirror. If the mirrors disagree, stop and tell me before planning further. Correct 04-data-sources.md wherever the live service differs from it.
 - Layering per 05-architecture.md §4: the parser in lib/providers is a pure function from bytes to records with streaming, field-filtered parsing (records repeat a large nested object; never hold the whole body). The HTTPS client in src/platform implements an abstract fetch interface. Both are testable separately; parser tests run on the host against the recorded fixtures and against truncated, reordered and corrupted variants.
 - HTTPS with certificate verification against a bundled root store, client rules per 04-data-sources.md §10. Research how the chosen framework bundles root certificates and what it costs in flash; never disable verification. Requests run only when the clock is valid.
 - Validation per 04-data-sources.md §7 except the plausibility comparison with calculated times, which arrives in Slice 7.

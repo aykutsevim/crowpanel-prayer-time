@@ -1,5 +1,5 @@
 # PlatformIO post-build hook: reports the application image size and fails the build if it
-# exceeds the budget (handover/docs/05-architecture.md §5, constitution Principle IX).
+# exceeds the budget (docs/specification/05-architecture.md §5, constitution Principle IX).
 # Wired through `extra_scripts = post:tools/pio_size_budget.py` for device environments.
 import os
 import subprocess

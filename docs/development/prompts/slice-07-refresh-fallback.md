@@ -1,6 +1,6 @@
 # Slice 7: Automatic refresh and fallback
 
-Goal: the device keeps its own data current, switches between sources without anyone noticing, and labels the screen honestly when it has to fall back to calculated times. See `handover/docs/06-roadmap.md`.
+Goal: the device keeps its own data current, switches between sources without anyone noticing, and labels the screen honestly when it has to fall back to calculated times. See `docs/specification/06-roadmap.md`.
 
 This is the largest slice. Most of it is logic that runs and is tested on the development machine.
 
@@ -11,7 +11,7 @@ This is the largest slice. Most of it is logic that runs and is tested on the de
 ```text
 /speckit.specify Automatic refresh and fallback of prayer-time data for the Namaz Vakti Panel.
 
-Read first: handover/docs/03-functional-spec.md §6 and §7; handover/docs/04-data-sources.md completely; handover/docs/02-ui-spec.md §6 and reference renders 10, 11 and 12.
+Read first: docs/specification/03-functional-spec.md §6 and §7; docs/specification/04-data-sources.md completely; docs/specification/02-ui-spec.md §6 and reference renders 10, 11 and 12.
 
 Why: a device that shows correct times today but needs attention next month, or goes blank when a volunteer-run service is down, has failed. The owner should never think about data. The free sources this product relies on have no guarantees, so the device must refresh itself on a schedule, use several sources in a fixed order, fall back to calculation as a last resort, and say clearly when what it shows is approximate.
 
@@ -54,7 +54,7 @@ Suggested answers if asked: the numbers in `04-data-sources.md` §5 are the defa
 /speckit.plan Plan automatic refresh and fallback.
 
 Constraints and research:
-- Do the live verification in handover/docs/04-data-sources.md §13 items 2, 4 and 6 now, for my district: the second mirror's schema, the calculation service's parameters and response format, and how far its results are from the published times over a month (report the per-prayer differences). Record real responses as fixtures. Correct 04-data-sources.md where reality differs.
+- Do the live verification in docs/specification/04-data-sources.md §13 items 2, 4 and 6 now, for my district: the second mirror's schema, the calculation service's parameters and response format, and how far its results are from the published times over a month (report the per-prayer differences). Record real responses as fixtures. Correct 04-data-sources.md where reality differs.
 - Research and choose the calculation library per 04-data-sources.md §3.5: maintained, tested, licence compatible, small. Pin it. Compare its output for my district over the last 30 stored days with the published times and report the per-prayer median difference before and after calibration.
 - Refresh planner in lib/providers as a deterministic state machine driven by an injected clock and an abstract fetch interface, with no knowledge of Wi-Fi or tasks. It implements the triggers, the ordered steps, the stop conditions, the request cap, backoff, cool-downs and the night-window scheduling with per-device jitter from 04-data-sources.md §5. Its host tests script time and responses: all sources up; each source down in turn; both mirrors down with a full store, with a nearly empty store, with an empty store; rate-limit responses; malformed data; year end; Wi-Fi reconnect storms; location change mid-refresh. Assert the request sequence and the resulting store for each.
 - Providers: add parsers for the second mirror and the calculation service in lib/providers with fixture-based tests; the on-device calculation and calibration maths in lib/core with tests.

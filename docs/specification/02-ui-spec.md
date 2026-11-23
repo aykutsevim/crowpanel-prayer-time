@@ -4,9 +4,9 @@ This document defines every screen of the device at pixel level. It is written f
 
 Three artefacts define the UI. If they disagree, this is the order of authority:
 
-1. `handover/design/screens/*.png`: reference renders, exactly 800×480, one per state.
+1. `docs/design/screens/*.png`: reference renders, exactly 800×480, one per state.
 2. This document: positions, rules and text.
-3. `handover/design/reference.html`: the interactive source the renders were made from. Open it in a browser to scrub through the day and switch states. `handover/design/tokens.json` holds the same numbers in machine-readable form.
+3. `docs/design/reference.html`: the interactive source the renders were made from. Open it in a browser to scrub through the day and switch states. `docs/design/tokens.json` holds the same numbers in machine-readable form.
 
 The UI language is **Turkish**. Do not translate on-screen strings. Code, comments and logs are English.
 

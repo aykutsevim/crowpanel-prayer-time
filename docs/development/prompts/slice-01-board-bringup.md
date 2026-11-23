@@ -1,6 +1,6 @@
 # Slice 1: Silent board bring-up
 
-Goal: prove that this board shows a stable picture, reads touch, controls its backlight and stays completely silent, and record which driver stack the project uses. See `handover/docs/06-roadmap.md`.
+Goal: prove that this board shows a stable picture, reads touch, controls its backlight and stays completely silent, and record which driver stack the project uses. See `docs/specification/06-roadmap.md`.
 
 Before step 1 the owner reads the board: model number on the back label (`DIS08070H` or `DIS02170A`) and the hardware revision printed on the PCB. Put both into the first prompt where indicated.
 
@@ -11,7 +11,7 @@ Before step 1 the owner reads the board: model number on the back label (`DIS080
 ```text
 /speckit.specify Silent board bring-up for the Namaz Vakti Panel.
 
-Read first: handover/docs/01-product-brief.md (hard constraints), handover/docs/03-functional-spec.md §1 and §9, handover/docs/05-architecture.md §1 and §2.
+Read first: docs/specification/01-product-brief.md (hard constraints), docs/specification/03-functional-spec.md §1 and §9, docs/specification/05-architecture.md §1 and §2.
 
 My board: model <DIS08070H or DIS02170A>, hardware revision <as printed on the PCB>.
 
@@ -58,7 +58,7 @@ Suggested answers if asked: the diagnostic screen stays until restarted; stress 
 /speckit.plan Plan the silent board bring-up.
 
 Constraints and inputs:
-- Follow handover/docs/05-architecture.md: §1 for board facts, §2 for the risks this slice must settle, §3 for the recommended stack and the alternative, §4 for where code goes (everything in this slice is in src/platform and src/app), §9 for silence.
+- Follow docs/specification/05-architecture.md: §1 for board facts, §2 for the risks this slice must settle, §3 for the recommended stack and the alternative, §4 for where code goes (everything in this slice is in src/platform and src/app), §9 for silence.
 - Research first, in research.md, citing sources: (a) the vendor's wiki page, repository examples and schematic for my exact model and revision: RGB pins and timing, touch wiring, the I/O expander sequence if the revision has one, the backlight pin and whether its driver accepts PWM, which signal enables or shuts down the audio amplifier, and on the Advance model also the buzzer, the DIP-switch positions that route audio, and anything an auxiliary controller on the board can drive; (b) the current documentation of each library you intend to use, with the versions you will pin; (c) known causes and fixes for picture instability on ESP32-S3 RGB panels with the chosen driver. Do not take pin numbers from memory. If the schematic leaves the amplifier control unclear, list the candidates and ask me to measure or inspect.
 - Start from the vendor-verified panel configuration. State the alternative stack you would switch to and the evidence that would trigger the switch.
 - Silence: one platform function that parks the audio pins and disables the amplifier, called first in startup. Backlight PWM at 20 kHz or higher, only on the backlight pin.
@@ -126,7 +126,7 @@ The picture is unstable: <describe what you see, idle or only under stress>. App
 Then:
 
 ```text
-Update handover/docs/05-architecture.md with what we learned: confirmed pins and revision behaviour, the chosen display stack and why, backlight result, amplifier control. Mark the corresponding ⚠ items as verified with today's date. Record the owner's checklist answers in the feature directory. Commit and merge the feature branch.
+Update docs/specification/05-architecture.md with what we learned: confirmed pins and revision behaviour, the chosen display stack and why, backlight result, amplifier control. Mark the corresponding ⚠ items as verified with today's date. Record the owner's checklist answers in the feature directory. Commit and merge the feature branch.
 ```
 
 ## Done when

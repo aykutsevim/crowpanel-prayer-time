@@ -154,7 +154,7 @@ Over-the-air update is out of scope on 4 MB. On the Advance board (16 MB) it can
 
 Claude Code cannot look at the panel. Two mechanisms close that gap; build both in Slice 3 and use them in every later slice that touches the UI.
 
-1. **Host UI harness.** Compile `lib/ui`, `lib/core` and LVGL for the development machine with a headless display driver that renders into an 800×480 buffer and writes PNG files. A command-line entry point renders a named fixture, for example time 14:32:07 with system state `ok`, to a file. A script renders all fixtures listed in `02-ui-spec.md` §11 into `out/snapshots/`. The agent opens each snapshot next to its reference render in `handover/design/screens/` and compares them; geometry of non-text elements can also be checked numerically.
+1. **Host UI harness.** Compile `lib/ui`, `lib/core` and LVGL for the development machine with a headless display driver that renders into an 800×480 buffer and writes PNG files. A command-line entry point renders a named fixture, for example time 14:32:07 with system state `ok`, to a file. A script renders all fixtures listed in `02-ui-spec.md` §11 into `out/snapshots/`. The agent opens each snapshot next to its reference render in `docs/design/screens/` and compares them; geometry of non-text elements can also be checked numerically.
 2. **Development serial commands** on the device (SYS-06): set simulated time and speed, force a system state, load the test fixture, show a named screen. The owner photographs the panel only when a slice’s verification checklist asks for it.
 
 ## 8. Testing
@@ -197,4 +197,4 @@ To be confirmed by the plan in Slice 1 and then recorded in the repository’s `
 3. Where the slice touches the UI: snapshots for affected fixtures have been regenerated and reviewed against the references.
 4. The owner has completed the slice’s verification checklist on the device and the results are recorded in the feature directory.
 5. `/speckit.converge` reports converged.
-6. The repository `README` and this handover’s open questions are updated with anything learned.
+6. The repository `README` and the open questions in `01-product-brief.md` are updated with anything learned.

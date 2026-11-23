@@ -13,7 +13,7 @@ Prerequisite: the owner has applied for and received credentials for the Awqat S
 ```text
 /speckit.specify Use Diyanet's official prayer-time service on the Namaz Vakti Panel when the owner has credentials.
 
-Read first: handover/docs/04-data-sources.md §2, §3.3, §4, §5 and §13 item 5; handover/docs/03-functional-spec.md §6 and the settings table in §8.
+Read first: docs/specification/04-data-sources.md §2, §3.3, §4, §5 and §13 item 5; docs/specification/03-functional-spec.md §6 and the settings table in §8.
 
 Why: the community mirrors republish Diyanet's tables and have served well, but the authority's own service is the most direct source. An owner who has obtained credentials should get their times from it first, with the mirrors remaining as automatic fallbacks. The service has small usage quotas, so the device must use it sparingly.
 
@@ -39,7 +39,7 @@ Out of scope: applying for an account, any use of the service beyond prayer time
 ```text
 /speckit.plan Plan the official-service provider.
 
-- Read the live API reference first and record in research.md the exact sign-in request and response, token lifetimes, the monthly timetable response, the quota endpoint's response, error bodies for bad credentials and exhausted quota, and the stated quota rules. Then make one sign-in and one monthly request with my credentials, record the responses as fixtures with secrets removed, and compare the month with the mirrors' data for my district. Report differences before going further. Correct handover/docs/04-data-sources.md §3.3 where the live service differs.
+- Read the live API reference first and record in research.md the exact sign-in request and response, token lifetimes, the monthly timetable response, the quota endpoint's response, error bodies for bad credentials and exhausted quota, and the stated quota rules. Then make one sign-in and one monthly request with my credentials, record the responses as fixtures with secrets removed, and compare the month with the mirrors' data for my district. Report differences before going further. Correct docs/specification/04-data-sources.md §3.3 where the live service differs.
 - Confirm how the service identifies my district and map it to the stored district id; do not assume the ids are the same.
 - Add the provider as rank 50 in the planner from Slice 7 as the first step of a refresh when credentials exist, with its own stricter call budget and cool-downs, covered by planner scenario tests: success, bad credentials, quota exhausted, service down, partial data.
 - Tokens are kept in memory only. Credentials stay in non-volatile storage and never appear in logs, the status interface or the settings page.
@@ -65,7 +65,7 @@ Prerequisite: either the board is the Advance model, which has a real-time clock
 ```text
 /speckit.specify Keep time through power cuts on the Namaz Vakti Panel with a battery-backed clock (built into the Advance board, or an optional module on the basic board).
 
-Read first: handover/docs/03-functional-spec.md §2 (TIME-03, TIME-08); handover/docs/05-architecture.md §1.
+Read first: docs/specification/03-functional-spec.md §2 (TIME-03, TIME-08); docs/specification/05-architecture.md §1.
 
 Why: the board forgets the time when it loses power, so after a power cut without Wi-Fi the device can only show the "waiting for time" state even though it has months of prayer times stored. A small battery-backed clock module removes that gap for owners who want it. Devices without the module must behave exactly as before.
 

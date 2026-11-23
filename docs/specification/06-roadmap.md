@@ -1,6 +1,6 @@
 # Roadmap
 
-The product is built in ten slices. Each slice is one Spec Kit feature: it gets its own specification, plan, task list and branch, ends in something the owner can see working, and leaves the main branch releasable. Prompts for every slice are in `handover/prompts/`.
+The product is built in ten slices. Each slice is one Spec Kit feature: it gets its own specification, plan, task list and branch, ends in something the owner can see working, and leaves the main branch releasable. Prompts for every slice are in `docs/development/prompts/`.
 
 Order matters. The early slices remove the largest risks first: can the board show a stable picture silently (1), is the time logic right (2), does the approved design render correctly (3). Networking and data come after there is a correct screen to show them on.
 

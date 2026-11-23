@@ -39,7 +39,7 @@ It is a personal device for one household. There is no cloud backend, no account
 | **Design** | Design A as specified in `02-ui-spec.md`. The layout is approved; do not redesign it. |
 | **Data authority** | Diyanet’s published times are the reference. Anything else is a fallback and is labelled as approximate. |
 | **Setup** | Wi-Fi provisioning through the device’s own access point and a captive portal page on the phone. |
-| **Process** | Development follows GitHub Spec Kit, slice by slice, as laid out in `06-roadmap.md` and `handover/prompts/`. |
+| **Process** | Development follows GitHub Spec Kit, slice by slice, as laid out in `06-roadmap.md` and `docs/development/prompts/`. |
 
 ## What success looks like
 

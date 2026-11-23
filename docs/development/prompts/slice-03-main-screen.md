@@ -1,6 +1,6 @@
 # Slice 3: Main screen with sample data
 
-Goal: the approved design on the real panel, faithful to the reference, showing every time-of-day and system state from sample data and a simulated clock. See `handover/docs/06-roadmap.md`.
+Goal: the approved design on the real panel, faithful to the reference, showing every time-of-day and system state from sample data and a simulated clock. See `docs/specification/06-roadmap.md`.
 
 Needs Slice 1 (display stack decided) and Slice 2 (engine).
 
@@ -11,7 +11,7 @@ Needs Slice 1 (display stack decided) and Slice 2 (engine).
 ```text
 /speckit.specify Main screen of the Namaz Vakti Panel, shown with sample data and a simulated clock.
 
-Read first: handover/docs/02-ui-spec.md completely (§1 to §6, §9, §11, §12 apply to this feature), and look at every image in handover/design/screens/ numbered 01 to 14. Open handover/design/tokens.json for the numbers. handover/design/reference.html is the interactive source of those renders.
+Read first: docs/specification/02-ui-spec.md completely (§1 to §6, §9, §11, §12 apply to this feature), and look at every image in docs/design/screens/ numbered 01 to 14. Open docs/design/tokens.json for the numbers. docs/design/reference.html is the interactive source of those renders.
 
 Why: this screen is the product. It was designed and approved in advance, so the job is faithful reproduction, not design. Getting it right before networking exists means later features only have to supply data.
 
@@ -50,12 +50,12 @@ Suggested answers if asked: the reference PNG wins over prose; text baselines wi
 /speckit.plan Plan the main screen.
 
 Constraints:
-- Structure per handover/docs/05-architecture.md §4: screen code in lib/ui depending only on LVGL and lib/core; it takes the engine's output struct plus a small system-state struct as its view model. No board, Wi-Fi or storage code in lib/ui.
+- Structure per docs/specification/05-architecture.md §4: screen code in lib/ui depending only on LVGL and lib/core; it takes the engine's output struct plus a small system-state struct as its view model. No board, Wi-Fi or storage code in lib/ui.
 - Fonts: convert Barlow and Barlow Condensed (SIL OFL) to the sizes, weights and glyph sets in 02-ui-spec.md §2.2. Research the current font conversion tool for the LVGL version chosen in Slice 1 and pin it. Keep the font sources' licence file, the converted fonts and a regeneration script in assets/fonts. Report the flash cost per font and in total against the 300 kB budget; propose consolidation only from the allowed list in the spec.
 - Numbers that tick must not move: lay out clock and countdown with one fixed-width cell per character as specified (digit cell 0.475 em, colon cell 0.252 em).
 - Drawing: the strip, hatch, separators, marker and leader lines are static geometry for a given day; decide between LVGL objects, a canvas, or custom draw events, and justify the choice by memory and redraw cost. Per-second updates must touch only the clock, countdown and progress fill; per-minute the marker and notes (UI-03).
 - Host UI harness per 05-architecture.md §7: a native build of lib/ui + lib/core + LVGL with a headless display that writes PNG files, and a command that renders fixtures 01 to 14 into out/snapshots/. The fixture definitions (time, system state, expected file name) live in one table shared by the harness and the device's serial commands.
-- Review loop: after rendering, open each snapshot beside its reference in handover/design/screens/ and compare them yourself; fix differences; only then prepare the owner checklist. Add a script that reports the pixel bounding boxes of the strip, the current column and the marker in a snapshot so geometry can be asserted in tests.
+- Review loop: after rendering, open each snapshot beside its reference in docs/design/screens/ and compare them yourself; fix differences; only then prepare the owner checklist. Add a script that reports the pixel bounding boxes of the strip, the current column and the marker in a snapshot so geometry can be asserted in tests.
 - Device: a simulated clock module in src/app that the serial commands control (time, speed multiplier, system state, fixture number). The real clock arrives in Slice 5 behind the same interface.
 - Performance target: a full-screen redraw at a period change completes without visible tearing; steady-state CPU use leaves the UI task idle most of each second. State how you will measure both.
 - Stay within the firmware size budget and report the size.
@@ -74,7 +74,7 @@ Constraints:
 ## Step 6: Implement
 
 ```text
-/speckit.implement Stage 1: fonts and the host UI harness with an empty screen, then the static layout of the main screen for fixture 01. Render the snapshot, compare it with handover/design/screens/01-main-ogle-1432.png yourself, and iterate until it is within tolerance. Show me both images' paths and a list of remaining differences.
+/speckit.implement Stage 1: fonts and the host UI harness with an empty screen, then the static layout of the main screen for fixture 01. Render the snapshot, compare it with docs/design/screens/01-main-ogle-1432.png yourself, and iterate until it is within tolerance. Show me both images' paths and a list of remaining differences.
 ```
 
 ```text
