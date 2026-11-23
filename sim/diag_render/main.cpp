@@ -1,14 +1,69 @@
 // Host UI harness for the engineering screens (FR-008, research R12).
 //
-// Renders view-model fixtures of the boot, diagnostic and settings screens to
-// out/snapshots/*.png with LVGL's test display and screenshot writer.
-//
-// Stage 1 of spec 001 has no screens yet: this program only proves that LVGL 9.6.0 and the
-// 800x480 test display build and run on the development machine. The fixtures arrive in
-// Stage 2 (tasks.md, Phase 4).
-#include "lvgl.h"
-
+// Renders view-model fixtures of the boot and diagnostic screens to out/snapshots/*.png with
+// LVGL's test display (800x480) and screenshot writer, so the implementer can check them
+// before the owner looks at the panel (CLAUDE.md, "You cannot see the panel").
+// Fixtures: contracts/diag-screens.md, "Snapshot fixtures". Settings fixtures arrive in Stage 3.
 #include <cstdio>
+#include <cstring>
+#include <initializer_list>
+
+#include "diag/boot_screen.h"
+#include "diag/diag_screen.h"
+#include "diag/view_model.h"
+#include "lvgl.h"
+#include "nvp/version.h"
+
+using namespace nvp::ui::diag;
+using nvp::diag::CornerResult;
+using nvp::diag::CornerState;
+using nvp::diag::index;
+using nvp::diag::Outcome;
+using nvp::diag::set_result;
+using nvp::diag::TestName;
+
+namespace {
+
+constexpr const char* kOutDir = "out/snapshots/";
+
+// Writes the active screen to out/snapshots/<name>.png (the old file is removed first, so the
+// test module writes a fresh image instead of comparing against it).
+bool snapshot(const char* name) {
+    char path[128];
+    std::snprintf(path, sizeof path, "%s%s.png", kOutDir, name);
+    std::remove(path);
+    const lv_test_screenshot_result_t r = lv_test_screenshot_compare(path);
+    // LVGL reports success even when the PNG write fails (it only logs), so check the file.
+    std::FILE* f = std::fopen(path, "rb");
+    const bool written = f != nullptr;
+    if (f) std::fclose(f);
+    const bool ok = r == LV_TEST_SCREENSHOT_RESULT_PASSED && written;
+    std::printf("sim: %-14s %s\n", name, ok ? path : "FAILED");
+    return ok;
+}
+
+DiagViewModel base() {
+    DiagViewModel vm;
+    vm.firmware = nvp::kFirmwareVersion;
+    vm.model = "DIS02170A";
+    vm.revision = "V1.4";
+    vm.silence.ran = true;
+    vm.silence.acknowledged = true;
+    vm.silence.ran_first = true;
+    vm.silence.attempts = 4;
+    for (TestName t : {TestName::Silence, TestName::Display, TestName::Touch, TestName::Backlight,
+                       TestName::Storage}) {
+        set_result(vm.tests[index(t)], Outcome::Passed, "");
+    }
+    set_result(vm.tests[index(TestName::WiFi)], Outcome::Skipped, "not in this stage");
+    vm.heap_internal_free = 337480;
+    vm.heap_psram_free = 7616000;
+    vm.heartbeat = true;
+    vm.screen = ActiveScreen::Diagnostic;
+    return vm;
+}
+
+}  // namespace
 
 int main() {
     lv_init();
@@ -17,9 +72,56 @@ int main() {
         std::fprintf(stderr, "sim: could not create the 800x480 test display\n");
         return 1;
     }
-    lv_refr_now(display);
-    std::printf("sim: LVGL %d.%d.%d test display 800x480 ready; no screens in Stage 1\n",
-                LVGL_VERSION_MAJOR, LVGL_VERSION_MINOR, LVGL_VERSION_PATCH);
+    int failures = 0;
+
+    lv_obj_t* boot = boot_screen_create(nvp::kFirmwareVersion, "DIS02170A", "V1.4");
+    lv_screen_load(boot);
+    failures += !snapshot("boot");
+
+    lv_obj_t* diag = diag_screen_create(Edge::Left, DiagActions{});
+    lv_screen_load(diag);
+
+    DiagViewModel idle = base();
+    diag_screen_update(idle);
+    failures += !snapshot("diag_idle");
+
+    DiagViewModel failed = base();
+    set_result(failed.tests[index(TestName::Touch)], Outcome::Failed, "GT911 not found at 0x5D");
+    set_result(failed.tests[index(TestName::Storage)], Outcome::Failed, "mount failed");
+    set_result(failed.tests[index(TestName::WiFi)], Outcome::Skipped, "no Wi-Fi set up");
+    failed.heartbeat = false;
+    diag_screen_update(failed);
+    failures += !snapshot("diag_failures");
+
+    DiagViewModel stress = base();
+    stress.stress.running = true;
+    stress.stress.elapsed_s = 312;
+    stress.stress.cycles = 31;
+    stress.stress.scan_ok = 31;
+    stress.stress.write_ok = 31;
+    stress.stress.https_ok = 9;
+    stress.stress.https_err = 1;
+    std::snprintf(stress.stress.last_error, sizeof stress.stress.last_error, "https: timeout");
+    stress.wifi.kind = nvp::diag::WifiKind::Connected;
+    std::snprintf(stress.wifi.ssid, sizeof stress.wifi.ssid, "EvAgi");
+    stress.wifi.rssi_dbm = -54;
+    diag_screen_update(stress);
+    failures += !snapshot("diag_stress");
+
+    DiagViewModel touch = base();
+    touch.touch_active = true;
+    touch.touch_x = 300;
+    touch.touch_y = 120;
+    touch.corners[0] = CornerResult{CornerState::Passed, 2, -1};
+    touch.corners[1] = CornerResult{CornerState::Passed, -3, 4};
+    touch.corners[2] = CornerResult{CornerState::Failed, 14, 3};
+    diag_screen_update(touch);
+    failures += !snapshot("diag_touch");
+
     lv_deinit();
+    if (failures > 0) {
+        std::fprintf(stderr, "sim: %d snapshot(s) failed\n", failures);
+        return 1;
+    }
     return 0;
 }

@@ -16,7 +16,7 @@ Black background with centred text:
 - `Namaz Vakti Panel`
 - the firmware version
 - `DIS02170A V1.4`
-- `starting…`
+- `starting...` (three dots: the built-in Montserrat font has no U+2026 glyph; checked 2026-11-23)
 
 It shows until the diagnostic screen is ready, at most 5 s after power-on (SC-006).
 

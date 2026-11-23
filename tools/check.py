@@ -78,6 +78,7 @@ def main() -> None:
         sys.exit("CHECK FAILED: firmware over budget.")
     step("size by module", [py, "tools/size_by_module.py", str(ROOT / ".pio" / "build" / FIRMWARE_ENV / "firmware.map")])
     step("ui snapshots", [pio, "run", "-e", "sim", "-t", "exec"])
+    step("snapshot pixels", [py, "tools/check_snapshots.py"])
     print("\nCHECK PASSED")
 
 
