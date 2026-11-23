@@ -17,6 +17,10 @@ struct Snapshot {
     const char* reset_reason = "unknown";
 };
 
+// Reads the values that never change (flash and PSRAM size, MAC, reset reason) once. Call it
+// before the display starts: the flash ID read must not run while the panel scans out of PSRAM.
+void init();
+
 Snapshot read();
 uint32_t uptime_ms();
 

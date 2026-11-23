@@ -48,7 +48,10 @@ inline constexpr int kLcdDe = 42;
 inline constexpr int kLcdVsync = 41;
 inline constexpr int kLcdHsync = 40;
 inline constexpr int kLcdPclk = 39;
-inline constexpr uint32_t kPclkHz = 16000000;  // IDF example, lesson-03/-05; 39 Hz refresh (R4, R8 L0)
+// Pixel clock. Vendor value 16 MHz (IDF example, lesson-03/-05; 39 Hz refresh, R4, R8 L0).
+// Mitigation ladder step L1 (research R8, stack decision log 2026-11-23): 14 MHz, 34 Hz refresh,
+// after the owner saw the picture shift left and recover while idle (checklist D1).
+inline constexpr uint32_t kPclkHz = 14000000;
 inline constexpr int kHsyncFrontPorch = 8;
 inline constexpr int kHsyncPulseWidth = 4;
 inline constexpr int kHsyncBackPorch = 8;
@@ -58,6 +61,14 @@ inline constexpr int kVsyncBackPorch = 8;
 inline constexpr bool kHsyncIdleLow = false;   // polarities 0
 inline constexpr bool kVsyncIdleLow = false;
 inline constexpr bool kPclkActiveNeg = true;   // data sampled on the falling edge (IDF example)
+
+// --- Orientation: the panel edge the USB-C connector is on, with the picture upright ---
+// The vendor board drawing (REPO/Datasheet/LI070DE42Y_0812.dwg) is not machine-readable here, so
+// the side comes from the owner (2026-11-23): with the factory demo's picture upright, USB-C is on
+// the LEFT edge. This firmware draws without rotation and assumes the factory demo did too; that
+// is not documented, so checklist B2 confirms both the upright picture and this side.
+enum class PanelEdge : uint8_t { Left, Right, Top, Bottom };
+inline constexpr PanelEdge kUsbCEdge = PanelEdge::Left;
 
 // The ESP32 has no backlight pin: the backlight driver (MT9201) is controlled by the auxiliary
 // controller only (research R6; IDF example EXAMPLE_PIN_NUM_BK_LIGHT = -1).

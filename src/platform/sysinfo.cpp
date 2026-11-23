@@ -28,20 +28,42 @@ const char* reset_reason_name(esp_reset_reason_t r) {
     }
 }
 
+// Values that never change, read once. Reading the flash chip ID is a flash command on the bus
+// it shares with PSRAM; repeated while the RGB panel scans out of PSRAM, it disturbs the picture
+// (research R8, owner check D1 on 2026-11-23). So it happens once, before the display starts.
+struct Fixed {
+    bool read = false;
+    uint32_t flash_bytes = 0;
+    uint32_t psram_bytes = 0;
+    uint8_t mac[6] = {};
+    const char* reset_reason = "unknown";
+};
+Fixed g_fixed;
+
+void read_fixed() {
+    if (g_fixed.read) return;
+    uint32_t flash = 0;
+    if (esp_flash_get_physical_size(nullptr, &flash) == ESP_OK) g_fixed.flash_bytes = flash;
+    g_fixed.psram_bytes = static_cast<uint32_t>(esp_psram_get_size());
+    esp_read_mac(g_fixed.mac, ESP_MAC_WIFI_STA);
+    g_fixed.reset_reason = reset_reason_name(esp_reset_reason());
+    g_fixed.read = true;
+}
+
 }  // namespace
 
+void init() { read_fixed(); }
+
 Snapshot read() {
+    read_fixed();
     Snapshot s;
     s.internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     s.internal_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     s.psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-    uint32_t flash = 0;
-    if (esp_flash_get_physical_size(nullptr, &flash) == ESP_OK) {
-        s.flash_bytes = flash;
-    }
-    s.psram_bytes = static_cast<uint32_t>(esp_psram_get_size());
-    esp_read_mac(s.mac, ESP_MAC_WIFI_STA);
-    s.reset_reason = reset_reason_name(esp_reset_reason());
+    s.flash_bytes = g_fixed.flash_bytes;
+    s.psram_bytes = g_fixed.psram_bytes;
+    for (int i = 0; i < 6; ++i) s.mac[i] = g_fixed.mac[i];
+    s.reset_reason = g_fixed.reset_reason;
     return s;
 }
 
