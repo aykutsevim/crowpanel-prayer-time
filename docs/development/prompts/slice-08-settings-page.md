@@ -1,6 +1,6 @@
 # Slice 8: Settings page
 
-Goal: everything adjustable can be adjusted from a browser on the home network, protected by a PIN shown on the device. See `handover/docs/06-roadmap.md`.
+Goal: everything adjustable can be adjusted from a browser on the home network, protected by a PIN shown on the device. See `docs/specification/06-roadmap.md`.
 
 ## Step 1: Specify
 
@@ -9,7 +9,7 @@ Goal: everything adjustable can be adjusted from a browser on the home network, 
 ```text
 /speckit.specify Settings page for the Namaz Vakti Panel, served on the home network.
 
-Read first: handover/docs/03-functional-spec.md §8, §9 and §11; handover/docs/02-ui-spec.md §7.4 and §10; handover/docs/04-data-sources.md §6 and §12; the owner's answers to the open questions in handover/docs/01-product-brief.md.
+Read first: docs/specification/03-functional-spec.md §8, §9 and §11; docs/specification/02-ui-spec.md §7.4 and §10; docs/specification/04-data-sources.md §6 and §12; the owner's answers to the open questions in docs/specification/01-product-brief.md.
 
 Why: after setup the device should need no attention, but a few things are personal: the district may change, the kerahat layer is a matter of preference, the screen may be too bright at night. These must be adjustable without re-running setup and without controls on the device itself, and only by someone who can see the device.
 

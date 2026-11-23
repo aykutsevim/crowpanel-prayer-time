@@ -1,6 +1,6 @@
 # Slice 2: Prayer-time engine
 
-Goal: the time logic of the product, correct and proven on the development machine, with no hardware involved. See `handover/docs/06-roadmap.md`.
+Goal: the time logic of the product, correct and proven on the development machine, with no hardware involved. See `docs/specification/06-roadmap.md`.
 
 This slice needs no board. It can run while Slice 1 waits for the owner.
 
@@ -11,7 +11,7 @@ This slice needs no board. It can run while Slice 1 waits for the owner.
 ```text
 /speckit.specify Prayer-time engine for the Namaz Vakti Panel.
 
-Read first: handover/docs/01-product-brief.md (glossary), handover/docs/03-functional-spec.md §3, handover/docs/02-ui-spec.md §4.5, §5 and §9.
+Read first: docs/specification/01-product-brief.md (glossary), docs/specification/03-functional-spec.md §3, docs/specification/02-ui-spec.md §4.5, §5 and §9.
 
 Why: the whole screen is derived from one question: given the current local time and the published times for yesterday, today and tomorrow, which prayer period are we in, when did it start, when does it end, what comes next and how long until then. If this is wrong by a minute at a boundary, the product is wrong. It must be decided once, in one place, and tested exhaustively without a device.
 
@@ -61,7 +61,7 @@ Suggested answers if asked: a time begins at second 00 of its minute; at the exa
 /speckit.plan Plan the prayer-time engine.
 
 Constraints:
-- It lives in lib/core as described in handover/docs/05-architecture.md §4: standard C++ only, no Arduino, ESP-IDF or LVGL headers, no heap allocation in the functions called every second, no global mutable state. It must compile for the host test environment and for the ESP32-S3.
+- It lives in lib/core as described in docs/specification/05-architecture.md §4: standard C++ only, no Arduino, ESP-IDF or LVGL headers, no heap allocation in the functions called every second, no global mutable state. It must compile for the host test environment and for the ESP32-S3.
 - Inputs are local civil date-times as plain fields (year, month, day, hour, minute, second) or a day number plus second-of-day; the engine never reads a clock or a time zone. Choose one representation and justify it for midnight and year-end arithmetic.
 - Output is one plain struct that later becomes the UI's view model. Design it now with the fields the screen needs (02-ui-spec.md §4 to §6) so Slice 3 can consume it unchanged.
 - All user-visible strings come from one table in lib/core with the exact Turkish text and the U+2019 apostrophe. Source files are UTF-8.
@@ -91,7 +91,7 @@ No device is involved. Ask Claude Code:
 Run the full check command. Then show me a table of the engine's output for the shared fixture at these times: 03:30:00, 06:15:59, 06:16:00, 06:50:00, 10:00:00, 12:54:00, 12:55:00, 14:32:07, 16:20:00, 17:42:00, 17:51:00, 18:20:00, 19:14:00, 21:30:00, 23:59:59. Columns: period name, bounds, countdown label, remaining, soon, entered, and the state and note of each of the six columns.
 ```
 
-Compare a few rows with the reference renders in `handover/design/screens/` (files 01 to 09 show seven of these moments).
+Compare a few rows with the reference renders in `docs/design/screens/` (files 01 to 09 show seven of these moments).
 
 ## Step 8: Converge and merge
 

@@ -8,7 +8,7 @@ namespace nvp {
 
 inline constexpr const char* kFirmwareVersion = NVP_VERSION_STRING;
 
-// SEC-03, handover/docs/04-data-sources.md §10.
+// SEC-03, docs/specification/04-data-sources.md §10.
 inline constexpr const char* kUserAgent =
     "NamazVaktiPanel/" NVP_VERSION_STRING " (ESP32-S3; personal device)";
 

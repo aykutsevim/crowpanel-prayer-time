@@ -6,9 +6,9 @@
 
 **Status**: Draft (clarified with the owner on 2026-11-20)
 
-**Input**: User description: "Slice 1 on a new feat branch" — Slice 1 of `handover/docs/06-roadmap.md`, as described in `handover/prompts/slice-01-board-bringup.md` (Step 1).
+**Input**: User description: "Slice 1 on a new feat branch" — Slice 1 of `docs/specification/06-roadmap.md`, as described in `docs/development/prompts/slice-01-board-bringup.md` (Step 1).
 
-**Requirements covered**: MODE-01, SIL-01, SIL-02, SIL-03, SIL-04, SIL-05, SIL-06, SEC-01, SEC-02, SEC-04, NET-02 (access-point identity only), NET-08, and the hardware risks in `handover/docs/05-architecture.md` §2.
+**Requirements covered**: MODE-01, SIL-01, SIL-02, SIL-03, SIL-04, SIL-05, SIL-06, SEC-01, SEC-02, SEC-04, NET-02 (access-point identity only), NET-08, and the hardware risks in `docs/specification/05-architecture.md` §2.
 
 **Board under test**: CrowPanel Advance 7.0", model **DIS02170A**, hardware revision **V1.4** (owner, read from the board, 2026-11-20).
 
@@ -20,7 +20,7 @@ The board is the Advance model, which `05-architecture.md` §1.2 treats as a sec
 
 ## Owner decisions recorded in this spec
 
-| Date | Decision | Effect on the handover |
+| Date | Decision | Effect on the project documents |
 |---|---|---|
 | 2026-11-20 | The target board is DIS02170A, revision V1.4. | The Advance profile becomes the project's build target. The constitution's "default target" line (basic, DIS08070H) and `05-architecture.md` §1.2 must be updated in this branch. The 2.9 MB image budget stays as a discipline. |
 | 2026-11-20 | Stress mode joins the home network so the encrypted request really runs. Wi-Fi details are entered from another phone through the device's own hotspot, started from an on-device settings screen, and stored on the device. | This moves a minimal form of Wi-Fi provisioning from Slice 4 into Slice 1. The roadmap's Slice 1 out-of-scope line ("Wi-Fi connection to a real network") must be updated in this branch. Slice 4 builds the full setup flow (QR code, captive portal, location, classified errors, product screens) on top of the stored-credentials mechanism from this slice. |
@@ -270,7 +270,7 @@ As the owner, I open a settings screen on the device and start Wi-Fi setup. The 
 - **FR-030**: The feature MUST end with an owner checklist of numbered yes/no questions covering Stories 1 to 5 and 7 and the serial report. It MUST be stored in the feature directory with the owner's answers recorded there.
 - **FR-031**: The display driver stack decision MUST be recorded in the feature directory with their evidence: the checklist answers and, if instability was seen, every mitigation tried and its outcome.
 - **FR-032**: The firmware image size MUST be reported after each build and stay within the project budget. The size taken by the diagnostic mode MUST be reported separately, since it ships with the product.
-- **FR-033**: In this branch, the handover documents and the constitution MUST be updated to reflect the owner decisions recorded above.
+- **FR-033**: In this branch, the project documents in `docs/` and the constitution MUST be updated to reflect the owner decisions recorded above.
 
 ### Key Entities
 

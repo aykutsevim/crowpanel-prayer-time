@@ -2,7 +2,7 @@
 
 **Branch**: `feat/001-silent-board-bringup` | **Date**: 2026-11-20 | **Spec**: [spec.md](spec.md)
 
-**Input**: Feature specification from `specs/001-silent-board-bringup/spec.md`, prompt Step 3 of `handover/prompts/slice-01-board-bringup.md`
+**Input**: Feature specification from `specs/001-silent-board-bringup/spec.md`, prompt Step 3 of `docs/development/prompts/slice-01-board-bringup.md`
 
 ## Summary
 
@@ -181,7 +181,7 @@ tools/check_tls.py                    # fails on setInsecure / one-argument http
 - **Stage 1**: steps 1–3, 7 and 9 (silence, serial, backlight full on, storage, report; `boot-to-diag: n/a (no display)`), board files, partitions, `lib/core/nvp/diag` units used by the report and parser, and serial commands `report` and `help`. No display. The owner flashes and compares against the expected serial output in [quickstart.md](quickstart.md).
 - **Stage 2**: display + boot and diagnostic screens + sim snapshots; then touch. The owner answers the matching checklist part after each.
 - **Stage 3**: Wi-Fi setup (settings screen, AP, portal, stored details), stress mode, and the remaining checklist. Mitigation ladder if needed.
-- **Close-out**: handover corrections and constitution amendment (FR-033, including SET-04 dropped), the stack decision recorded (FR-031), `/speckit-converge`.
+- **Close-out**: project-document corrections and constitution amendment (FR-033, including SET-04 dropped), the stack decision recorded (FR-031), `/speckit-converge`.
 
 ## Complexity Tracking
 

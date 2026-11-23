@@ -1,5 +1,5 @@
 # Partition table for the CrowPanel Advance 7.0" (DIS02170A V1.4, 16 MB flash, no OTA).
-# specs/001-silent-board-bringup/plan.md and handover/docs/05-architecture.md §5:
+# specs/001-silent-board-bringup/plan.md and docs/specification/05-architecture.md §5:
 # NVS 24 kB, PHY 4 kB, app 3.0 MB (image <= 2.9 MiB budget kept as a discipline),
 # LittleFS 4 MB (label "littlefs"; LittleFS.begin(..., "littlefs") must name it).
 # The remaining 8.9 MB (0x710000 to 0x1000000) is deliberately unallocated.

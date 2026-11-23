@@ -1,6 +1,6 @@
 # Slice 5: Real time
 
-Goal: the clock on screen is the real local time, and when the device cannot know the time it says so. See `handover/docs/06-roadmap.md`.
+Goal: the clock on screen is the real local time, and when the device cannot know the time it says so. See `docs/specification/06-roadmap.md`.
 
 ## Step 1: Specify
 
@@ -9,7 +9,7 @@ Goal: the clock on screen is the real local time, and when the device cannot kno
 ```text
 /speckit.specify Real time for the Namaz Vakti Panel.
 
-Read first: handover/docs/03-functional-spec.md §2; handover/docs/02-ui-spec.md §6 (state no_time) and reference render 13.
+Read first: docs/specification/03-functional-spec.md §2; docs/specification/02-ui-spec.md §6 (state no_time) and reference render 13.
 
 Why: every value on the screen depends on the current local time. The board has no battery-backed clock, so after each power-on the device knows nothing until it has reached a time source. It must get the time quickly and reliably once Wi-Fi is up, keep it accurate, and be honest in the meantime.
 

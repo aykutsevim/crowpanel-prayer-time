@@ -368,7 +368,7 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 ## Phase 10: Polish and cross-cutting
 
-- [ ] T072 [P] Update `handover/docs/05-architecture.md` (FR-033):
+- [ ] T072 [P] Update `docs/specification/05-architecture.md` (FR-033):
   - §1.2 with the verified V1.4 facts and the auxiliary-controller command table (research R2–R6), dated 2026-11-20
   - §1.1 marked as the non-target board
   - §2 risks updated with the backlight decision and silence through the auxiliary controller
@@ -377,13 +377,13 @@ description: "Task list for Slice 1: Silent Board Bring-up"
   - §5 with the 16 MB partitions
   - §10 with env names `crowpanel7_advance` and `sim`
   - ⚠ items verified so far marked with the date
-- [ ] T073 [P] Update the rest of the handover for the owner decisions (FR-033):
-  - `handover/docs/06-roadmap.md`: Slice 1 scope gains Wi-Fi setup and permanent diagnostics; Slice 4 builds on the stored keys; Slice 8 has no brightness or night dimming
-  - `handover/docs/03-functional-spec.md`: SET-04 dropped, with a note
-  - `handover/docs/01-product-brief.md`: open questions 1 and 4 answered
-  - `handover/prompts/slice-03-main-screen.md`: the hidden diagnostic gesture per FR-007a, proposal two fingers held for 5 s, not colliding with `02-ui-spec.md` §8
-  - `handover/prompts/slice-04-wifi-setup.md`: reuse NVS `wifi/*`, `ap/pass` and the portal paths
-  - `handover/prompts/slice-08-settings-page.md`: no brightness settings
+- [ ] T073 [P] Update the rest of the project documents for the owner decisions (FR-033):
+  - `docs/specification/06-roadmap.md`: Slice 1 scope gains Wi-Fi setup and permanent diagnostics; Slice 4 builds on the stored keys; Slice 8 has no brightness or night dimming
+  - `docs/specification/03-functional-spec.md`: SET-04 dropped, with a note
+  - `docs/specification/01-product-brief.md`: open questions 1 and 4 answered
+  - `docs/development/prompts/slice-03-main-screen.md`: the hidden diagnostic gesture per FR-007a, proposal two fingers held for 5 s, not colliding with `02-ui-spec.md` §8
+  - `docs/development/prompts/slice-04-wifi-setup.md`: reuse NVS `wifi/*`, `ap/pass` and the portal paths
+  - `docs/development/prompts/slice-08-settings-page.md`: no brightness settings
 - [ ] T074 [P] Update `README.md` with the development commands (`python tools/check.py`, `pio run -e crowpanel7_advance -t upload`, `pio device monitor -b 115200`, `pio run -e sim -t exec`), the DIP switch recommendation, and the serial command list.
 - [ ] T075 Record the final stack decision (FR-031) in `specs/001-silent-board-bringup/research.md` and copy a summary into `docs/decisions/0002-display-stack.md`. Confirm that every row of `specs/001-silent-board-bringup/owner-checklist.md` is answered and dated.
 - [ ] T076 Run `python tools/check.py`: all steps pass, and the size and diagnostic-mode size are reported. Confirm by search that `src/app/` and `lib/` include no `Arduino.h`, `esp_*`, `freertos/*` or `driver/*` header (constitution VI). Then run `/speckit-converge`.

@@ -1,6 +1,6 @@
 # Slice 4: Wi-Fi setup from the phone
 
-Goal: someone who has never seen the device puts it on their home Wi-Fi and chooses their district using only a phone and the instructions on the device’s screen. See `handover/docs/06-roadmap.md`.
+Goal: someone who has never seen the device puts it on their home Wi-Fi and chooses their district using only a phone and the instructions on the device’s screen. See `docs/specification/06-roadmap.md`.
 
 ## Step 1: Specify
 
@@ -9,7 +9,7 @@ Goal: someone who has never seen the device puts it on their home Wi-Fi and choo
 ```text
 /speckit.specify Wi-Fi setup from a phone for the Namaz Vakti Panel, using the device's own access point.
 
-Read first: handover/docs/03-functional-spec.md §1, §5, §7 and the settings table in §8; handover/docs/02-ui-spec.md §7, §8 and §10; reference renders 15, 16 and 17 in handover/design/screens/; handover/docs/04-data-sources.md §9.
+Read first: docs/specification/03-functional-spec.md §1, §5, §7 and the settings table in §8; docs/specification/02-ui-spec.md §7, §8 and §10; reference renders 15, 16 and 17 in docs/design/screens/; docs/specification/04-data-sources.md §9.
 
 Why: the device has no keyboard and must not need a cable, an app or an account. The owner's phone is the only tool. Setup also has to capture the location, and at that moment the phone has no internet because it is joined to the device, so everything the setup page needs must come from the device itself.
 

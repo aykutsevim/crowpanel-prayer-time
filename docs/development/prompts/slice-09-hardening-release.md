@@ -1,6 +1,6 @@
 # Slice 9: Hardening and release
 
-Goal: a version 1.0.0 that can be left running for months. This slice adds little that is visible; it measures, proves and documents. See `handover/docs/06-roadmap.md`.
+Goal: a version 1.0.0 that can be left running for months. This slice adds little that is visible; it measures, proves and documents. See `docs/specification/06-roadmap.md`.
 
 ## Step 1: Specify
 
@@ -9,7 +9,7 @@ Goal: a version 1.0.0 that can be left running for months. This slice adds littl
 ```text
 /speckit.specify Hardening and first release of the Namaz Vakti Panel.
 
-Read first: handover/docs/03-functional-spec.md §10, §11 and §12; handover/docs/01-product-brief.md ("What success looks like"); handover/docs/05-architecture.md §5, §6 and §8.
+Read first: docs/specification/03-functional-spec.md §10, §11 and §12; docs/specification/01-product-brief.md ("What success looks like"); docs/specification/05-architecture.md §5, §6 and §8.
 
 Why: this device will sit on a shelf, powered for years, with nobody watching it. It has to recover from anything by itself, never wear out its storage, never slowly run out of memory, and never show a wrong time. The owner needs evidence of that before trusting it, and a short guide in Turkish for whoever sets it up next.
 
@@ -60,7 +60,7 @@ Constraints and research:
 - Review logs and the status interface for secrets (SEC-04).
 - Documentation: docs/KULLANIM.md in Turkish for owners, covering setup, the meaning of each status line from 02-ui-spec.md §6, the status panel, the settings page and starting over; README.md in English for developers. Keep both short.
 - Versioning: one version constant used by the boot screen, status panel, User-Agent and tag. Release build configuration with development serial commands that can alter data or simulate time compiled out, and read-only diagnostics kept.
-- Update handover/docs with anything that changed during the project so that the documents describe the product as built.
+- Update the documents in `docs/specification/` with anything that changed during the project so that the documents describe the product as built.
 ```
 
 ## Steps 4 to 6

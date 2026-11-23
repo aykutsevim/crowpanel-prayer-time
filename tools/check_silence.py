@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Silence check (SIL-05, handover/docs/05-architecture.md §9).
+"""Silence check (SIL-05, docs/specification/05-architecture.md §9).
 
 Fails if project sources reference audio APIs or if the dependency list names an
 audio library. The device must never make a sound (constitution, Principle I).
