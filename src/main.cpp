@@ -1,23 +1,23 @@
 // Namaz Vakti Panel firmware entry point.
 //
-// Slice 0: prints a version line only. No display, touch, Wi-Fi or other peripheral code.
-//
-// Slice 1 adds, as the very first call in setup(), the platform function that shuts the
-// audio amplifier down and parks the audio data pins (SIL-02). Its pins are not yet verified
-// against the vendor schematic, so it is deliberately absent here (CLAUDE.md rule 4).
-#include <Arduino.h>
-
-#include "nvp/version.h"
-
-#ifndef NVP_BOARD_NAME
-#define NVP_BOARD_NAME "unknown"
-#endif
+// Startup order: specs/001-silent-board-bringup/plan.md, "Startup order" (MODE-01, FR-001,
+// FR-005). The silence step is the first statement of setup(), before any other peripheral is
+// started (SIL-02, MODE-01). Everything else lives in src/app and src/platform.
+#include "app/bringup_app.h"
+#include "platform/audio_off.h"
+#include "platform/console_io.h"
 
 void setup() {
-    Serial.begin(115200);
-    Serial.printf("NamazVaktiPanel %s (%s)\n", nvp::kFirmwareVersion, NVP_BOARD_NAME);
+    // 1. Silence first (SIL-02, MODE-01, FR-001).
+    platform::silence::audio_off();
+
+    // 2. Serial console, then the silence result on its own line.
+    platform::console::begin();
+    app::print_silence_line();
+    platform::silence::on_console_ready();
+
+    // 3+. Backlight, storage, report (Stage 1), via the app.
+    app::start();
 }
 
-void loop() {
-    delay(1000);
-}
+void loop() { app::loop(); }

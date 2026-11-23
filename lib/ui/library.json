@@ -1,0 +1,15 @@
+{
+  "name": "nvp_ui",
+  "version": "0.0.0",
+  "description": "Namaz Vakti Panel UI: LVGL screens. Depends on LVGL and nvp_core only (no Arduino, ESP-IDF or board headers).",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": [
+    { "name": "nvp_core" },
+    { "owner": "lvgl", "name": "lvgl", "version": "9.6.0" }
+  ],
+  "build": {
+    "srcDir": "src",
+    "includeDir": "src"
+  }
+}

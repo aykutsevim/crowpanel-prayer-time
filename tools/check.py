@@ -2,11 +2,13 @@
 """`check`: the one command every slice must pass (05-architecture.md §11).
 
 Steps, in order, stopping at the first failure:
-  1. unit tests of the repository tools (silence check self-test)
+  1. unit tests of the repository tools (silence and TLS check self-tests)
   2. silence check (SIL-05)
-  3. host unit tests:   pio test -e native
-  4. firmware build:    pio run -e crowpanel7_basic
-  5. size report against the 2.9 MiB budget
+  3. TLS source check (SEC-01)
+  4. host unit tests:   pio test -e native
+  5. firmware build:    pio run -e crowpanel7_advance
+  6. size report against the 2.9 MiB budget, then the diagnostic mode's share (FR-032)
+  7. UI snapshots:      pio run -e sim -t exec  (engineering screens, FR-008)
 
 Usage: python tools/check.py [--skip-firmware]
 """
@@ -21,7 +23,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FIRMWARE_ENV = "crowpanel7_basic"
+FIRMWARE_ENV = "crowpanel7_advance"
 BUDGET_BYTES = int(2.9 * 1024 * 1024)
 
 
@@ -57,6 +59,7 @@ def main() -> None:
     py = sys.executable
     step("tool tests", [py, "-m", "unittest", "discover", "-s", "tools", "-p", "test_*.py"])
     step("silence check", [py, "tools/check_silence.py"])
+    step("tls check", [py, "tools/check_tls.py"])
     pio = find_pio()
     step("host tests", [pio, "test", "-e", "native"])
     if args.skip_firmware:
@@ -73,6 +76,8 @@ def main() -> None:
     )
     if size > BUDGET_BYTES:
         sys.exit("CHECK FAILED: firmware over budget.")
+    step("size by module", [py, "tools/size_by_module.py", str(ROOT / ".pio" / "build" / FIRMWARE_ENV / "firmware.map")])
+    step("ui snapshots", [pio, "run", "-e", "sim", "-t", "exec"])
     print("\nCHECK PASSED")
 
 

@@ -1,25 +1,23 @@
 <!--
 Sync Impact Report
-- Version change: template (unversioned) → 1.0.0 (initial ratification)
-- Principles defined (all new):
-  I. Silence (NON-NEGOTIABLE)
-  II. Truthful Display (NON-NEGOTIABLE)
-  III. The Approved Design Is the Contract (NON-NEGOTIABLE)
-  IV. Offline First
-  V. Verify, Do Not Assume
-  VI. Testable Core
-  VII. Owner-in-the-Loop Verification
-  VIII. Small, Private and Polite
-  IX. Resource Discipline
-  X. Simplicity and Scope
-- Added sections: Hardware and Product Constraints; Development Workflow and Quality Gates; Governance
-- Removed sections: none
+- Version change: 1.0.0 → 1.1.0 (MINOR: guidance materially changed for the hardware target)
+- Reason: owner decisions recorded in specs/001-silent-board-bringup/spec.md (2026-11-20):
+  the target board is the CrowPanel Advance 7.0" DIS02170A rev V1.4; the basic board is no
+  longer a build target. Required by FR-033.
+- Modified sections:
+  IX. Resource Discipline: the image budget no longer refers to the 4 MB basic board; the
+      2.9 MB image budget is kept as a discipline.
+  Hardware and Product Constraints: target board and 16 MB partition layout.
+- Principles I, II and III: unchanged (no owner approval needed under Governance).
+- Added / removed sections: none
 - Templates reviewed:
-  ✅ .specify/templates/plan-template.md — its "Constitution Check" gate is filled per feature from this file; no edit needed
-  ✅ .specify/templates/spec-template.md — no conflict; specs cite requirement ids per Principle X
-  ✅ .specify/templates/tasks-template.md — no conflict; test-first for lib/core per Principle VI
-  ✅ .specify/templates/checklist-template.md — no conflict
-- Deferred TODOs: none
+  ✅ .specify/templates/plan-template.md: no reference to the board; no edit needed
+  ✅ .specify/templates/spec-template.md: no edit needed
+  ✅ .specify/templates/tasks-template.md: no edit needed
+  ✅ .specify/templates/checklist-template.md: no edit needed
+  ✅ CLAUDE.md: names "Elecrow CrowPanel 7.0\", 800×480" only; still accurate, no edit needed
+- Deferred TODOs: handover/docs/05-architecture.md §1, §5 and §10 are updated later in the
+  same branch (FR-033, tasks.md Phase 10).
 -->
 
 # Namaz Vakti Panel Constitution
@@ -131,8 +129,8 @@ Test: request-budget tests in the planner; secret review of logs and status inte
 
 ### IX. Resource Discipline
 
-- The firmware fits the 4 MB basic board without over-the-air update; the application image
-  stays at or below 2.9 MB, and its size is reported after every build.
+- The firmware is a single application image without over-the-air update; the image stays at
+  or below 2.9 MB, and its size is reported after every build.
 - No blocking I/O on the UI thread (UI-04). No steady-state heap growth (SYS-04).
 - Flash writes are rare (SYS-03) and atomic (DATA-07).
 
@@ -151,10 +149,11 @@ Test: every task in `tasks.md` names at least one requirement id or spec section
 
 ## Hardware and Product Constraints
 
-- Default target: CrowPanel 7.0" basic, DIS08070H, ESP32-S3-WROOM-1-N4R8 (4 MB flash, 8 MB PSRAM).
-  The Advance model (DIS02170A) is a second build profile only if the owner has one.
-- Partition layout per `05-architecture.md` §5: NVS 24 kB, PHY 4 kB, application 3.0 MB,
-  LittleFS remainder (≥ 512 kB). Fonts budget 300 kB.
+- Target: CrowPanel Advance 7.0", DIS02170A, hardware revision V1.4, ESP32-S3-WROOM-1-N16R8
+  (16 MB flash, 8 MB octal PSRAM). The basic model (DIS08070H) is not a build target; adding it
+  back is a new slice.
+- Partition layout (16 MB flash, `specs/001-silent-board-bringup/plan.md`): NVS 24 kB, PHY 4 kB,
+  application 3.0 MB, LittleFS 4 MB; the rest is unallocated. Fonts budget 300 kB.
 - Code structure and layering per `05-architecture.md` §4.
 - Code, comments, commit messages and logs are in English; UI strings are in Turkish, kept in one
   place.
@@ -183,4 +182,4 @@ Test: every task in `tasks.md` names at least one requirement id or spec section
 - Versioning follows semantic versioning: MAJOR for removing or redefining a principle, MINOR for
   adding a principle or materially expanding guidance, PATCH for clarifications.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-20
+**Version**: 1.1.0 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-23

@@ -8,6 +8,7 @@
     "extra_flags": [
       "-DBOARD_HAS_PSRAM",
       "-DARDUINO_USB_MODE=1",
+      "-DARDUINO_USB_CDC_ON_BOOT=0",
       "-DARDUINO_RUNNING_CORE=1",
       "-DARDUINO_EVENT_RUNNING_CORE=1"
     ],
@@ -23,14 +24,14 @@
   "frameworks": [
     "arduino"
   ],
-  "name": "Elecrow CrowPanel 7.0\" basic (DIS08070H, ESP32-S3-WROOM-1-N4R8)",
+  "name": "Elecrow CrowPanel Advance 7.0\" (DIS02170A, ESP32-S3-WROOM-1-N16R8)",
   "upload": {
-    "flash_size": "4MB",
+    "flash_size": "16MB",
     "maximum_ram_size": 327680,
-    "maximum_size": 4194304,
+    "maximum_size": 16777216,
     "require_upload_port": true,
     "speed": 921600
   },
-  "url": "https://github.com/Elecrow-RD/CrowPanel-7.0-HMI-ESP32-Display-800x480",
+  "url": "https://github.com/Elecrow-RD/CrowPanel-Advance-7-HMI-ESP32-S3-AI-Powered-IPS-Touch-Screen-800x480",
   "vendor": "Elecrow"
 }
