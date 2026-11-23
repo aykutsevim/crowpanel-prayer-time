@@ -25,3 +25,5 @@ Thumbs.db
 *.secret
 secrets.ini
 .env
+# Factory flash backups may hold Wi-Fi details stored by the vendor firmware
+backup/
