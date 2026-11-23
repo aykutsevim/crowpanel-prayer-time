@@ -31,33 +31,33 @@ Listening checks: a quiet room, your ear close to the board, speaker connector a
 |---|---|---|---|---|
 | A1 | Power-on: was the device completely silent (no click, pop, hiss, chirp, tone or whine)? | yes | 2026-11-23 | Stage 1 firmware 0.1.0 (power-on (USB unplugged and plugged in again)). An earlier "silent" the same day was given while the factory firmware still ran and counts only for I7. |
 | A2 | Reset button: was it completely silent during the restart? | yes | 2026-11-23 | Stage 1 firmware 0.1.0 (reset button). An earlier "silent" the same day was given while the factory firmware still ran and counts only for I7. |
-| A3 | With the backlight on (it is always full): no whine from the board? | | | |
+| A3 | With the backlight on (it is always full): no whine from the board? | yes | 2026-11-23 | no whine with the backlight fully on |
 | A4 | Ten minutes of stress mode: silent throughout? | | | |
 | A5 | Wi-Fi setup from the phone, including connecting: silent throughout? | | | |
-| A6 | Touching the screen and its buttons: no sound and no vibration? | | | |
+| A6 | Touching the screen and its buttons: no sound and no vibration? | yes | 2026-11-23 | no sound or vibration while touching the screen and buttons |
 
 ## B. Picture (Stage 2, B5 in Stage 3)
 
 | # | Question | Answer | Date | Note |
 |---|---|---|---|---|
-| B1 | Does each colour bar match its label (white, yellow, cyan, green, magenta, red, blue, black)? | | | |
-| B2 | Is the text the right way up, and is the USB-C connector on the side the arrow says? | | | |
-| B3 | Is the thin white border visible on **all four** edges, touching the edge of the glass? | | | |
-| B4 | Idle for one minute: are the fine vertical lines steady (even grey from arm's length, no colour tint, no crawling, shifting, tearing or flicker)? | | | |
+| B1 | Does each colour bar match its label (white, yellow, cyan, green, magenta, red, blue, black)? | yes | 2026-11-23 |  |
+| B2 | Is the text the right way up, and is the USB-C connector on the side the arrow says? | yes | 2026-11-23 | USB-C on the left, as the arrow says |
+| B3 | Is the thin white border visible on **all four** edges, touching the edge of the glass? | yes | 2026-11-23 |  |
+| B4 | Idle for one minute: are the fine vertical lines steady (even grey from arm's length, no colour tint, no crawling, shifting, tearing or flicker)? | yes | 2026-11-23 | First look at 16 MHz: steady between the shifts reported under D1. With L1 (14 MHz): lines steady, no shift (owner, 2026-11-23). |
 | B5 | During ten minutes of stress mode: do the lines and border stay exactly as in B3 and B4? If not, note when it happened and paste the serial log lines from that moment. | | | |
 
 ## C. Touch (Stage 2)
 
 | # | Question | Answer | Date | Note |
 |---|---|---|---|---|
-| C1 | Does the marker follow your finger, and disappear (`no touch`) when you lift it? | | | |
-| C2 | After touching the centre of each corner target: are **all four** targets green? | | | |
+| C1 | Does the marker follow your finger, and disappear (`no touch`) when you lift it? | yes | 2026-11-23 |  |
+| C2 | After touching the centre of each corner target: are **all four** targets green? | yes | 2026-11-23 | All four green after retries (first touches red). Report: TL passed (-4,-9) TR passed (+9,-7) BL passed (-10,+2) BR passed (+5,+10): all errors point outward, two at the 10 px limit; touch scale to be checked (GT911 resolution registers 0x8146..0x8149). |
 
 ## D. Backlight (Stage 2)
 
 | # | Question | Answer | Date | Note |
 |---|---|---|---|---|
-| D1 | Is the backlight on at full brightness and steady, with no flicker, and does the screen say `Backlight: full (dimming disabled)`? | | | |
+| D1 | Is the backlight on at full brightness and steady, with no flicker, and does the screen say `Backlight: full (dimming disabled)`? | yes (with L1, 14 MHz) | 2026-11-23 | 2026-11-23, firmware 0.1.0 Stage 2: flicker about every 3–4 s, picture sometimes moves left. Cause found: flash ID read every 100 ms (research, stack decision log). Fixed the same day; asked again. Second look after the fix (firmware with the flash read removed): backlight steady, blackout gone, picture still moves left and returns. Ladder step L1 (14 MHz) applied; asked again. Third look with L1 (PCLK 14 MHz): fully stable, backlight steady (owner, 2026-11-23). |
 
 ## E. Wi-Fi setup (Stage 3)
 

@@ -146,6 +146,7 @@ GPIO3, 45 and 46 are strapping pins used as LCD data. They are only driven by th
 
   Holding INT low while reset is released selects address 0x5D.
 - **Decision**: implement this sequence with a **bounded** loop (at most 10 attempts, about 2.5 s). On exhaustion, the touch self-test fails with the reason "GT911 not found at 0x5D" and boot continues (FR-005, spec edge case). The vendor's unbounded `while (1)` is not acceptable.
+- **Register map** (read 2026-11-23 from `REPO/Datasheet/GT911 Datasheet - English 20130827.pdf`, "Coordinates Information" table and I2C section): slave address 0xBA/0xBB (7-bit 0x5D); 16-bit register address, high byte first; product ID 0x8140..0x8143 (ASCII); 0x814E R/W "buffer status | large detect | number of touch points" (bit 7 = buffer status, bits 0..3 = points); 0x814F track id; 0x8150/0x8151 point 1 x low/high; 0x8152/0x8153 point 1 y low/high. The datasheet text does not spell out that the host writes 0 to 0x814E after reading; the register is R/W and this is the Goodix convention. Device evidence 2026-11-23: product ID reads `911` (selftest touch: passed); owner check C1 confirms the clearing behaviour.
 - **Driver decision**: a small GT911 reader written against the GT911 datasheet in `REPO/Datasheet/`. It reads the status register 0x814E and the first point at 0x8150, then clears the status. No third-party touch library is used, for these reasons:
   - LovyanGFX's `Touch_GT911` comes with the display stack rejected in R7.
   - `TAMC_GT911 1.0.2` (2021, used in COURSE) is unmaintained and drives reset and INT itself, which conflicts with the STC-controlled reset.
@@ -335,4 +336,6 @@ LVGL 9.6 notes that apply:
 
 | Date | Configuration | Idle stable? | Stress stable? | Evidence |
 |---|---|---|---|---|
-| | L0: esp_lcd, 16 MHz, no bounce buffer, PARTIAL 800×40 internal | | | owner checklist B4/B5 |
+| 2026-11-23 | L0: esp_lcd, 16 MHz, no bounce buffer, PARTIAL 800×40 internal (firmware 0.1.0, Stage 2) | **no** | not run | Owner: B4 yes (one-minute look), but D1 reports a flicker about every 3–4 s and the picture sometimes moving left. Cause found in the firmware, not the stack: the view refresh read the flash chip ID (`esp_flash_get_physical_size`) every 100 ms, a flash command on the bus PSRAM shares while the panel scans out of PSRAM. |
+| 2026-11-23 | L0 unchanged; flash ID read once at boot, before the display starts (`sysinfo::init`) | **no** | not run | Owner: the blackout is gone and the backlight is steady, but the picture still moves left and returns by itself (driver restart at the next frame); lines steady in between (B4). No flash access at run time any more, so this is the stack's own behaviour at idle. |
+| 2026-11-23 | **L1**: PCLK 14 MHz (34 Hz), otherwise as above | **yes** | pending (Stage 3, B5) | Owner, two to three minutes after start: "fully stable", fine lines steady (D1, B4). Current configuration. |

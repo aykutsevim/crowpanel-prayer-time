@@ -169,9 +169,9 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 **Independent test**: render the snapshots on the host and compare them with `contracts/diag-screens.md`. The owner answers B1–B4.
 
-- [ ] T030 [P] [US2] Create `lib/ui/src/diag/view_model.h`: `DiagViewModel` with the self-tests, Wi-Fi line, backlight line, heap, stress counters, touch state and corner results, heartbeat, active screen, and confirmation state (data-model.md). Plain data only.
-- [ ] T031 [P] [US2] Implement `lib/ui/src/diag/boot_screen.h/.cpp`: the boot screen per `contracts/diag-screens.md`.
-- [ ] T032 [US2] Implement `lib/ui/src/diag/diag_screen.h/.cpp` per `contracts/diag-screens.md`:
+- [X] T030 [P] [US2] Create `lib/ui/src/diag/view_model.h`: `DiagViewModel` with the self-tests, Wi-Fi line, backlight line, heap, stress counters, touch state and corner results, heartbeat, active screen, and confirmation state (data-model.md). Plain data only.
+- [X] T031 [P] [US2] Implement `lib/ui/src/diag/boot_screen.h/.cpp`: the boot screen per `contracts/diag-screens.md`.
+- [X] T032 [US2] Implement `lib/ui/src/diag/diag_screen.h/.cpp` per `contracts/diag-screens.md`:
   - the border at x=0, x=799, y=0 and y=479
   - the eight labelled bars in the given order
   - tick marks every 10 px
@@ -181,14 +181,14 @@ description: "Task list for Slice 1: Silent Board Bring-up"
   - the orientation arrow
   - the heartbeat
   - an `update(const DiagViewModel&)` that changes only the labels that differ
-- [ ] T033 [US2] Implement `sim/diag_render/main.cpp`. It creates `lv_test_display_create(800, 480)` and renders fixtures `boot`, `diag_idle`, `diag_failures` and `diag_stress` (`contracts/diag-screens.md`) to `out/snapshots/*.png` (research R12). Add `out/` to `.gitignore`.
-- [ ] T034 [US2] Review the snapshots yourself against `contracts/diag-screens.md`. Check numerically from the PNGs:
+- [X] T033 [US2] Implement `sim/diag_render/main.cpp`. It creates `lv_test_display_create(800, 480)` and renders fixtures `boot`, `diag_idle`, `diag_failures` and `diag_stress` (`contracts/diag-screens.md`) to `out/snapshots/*.png` (research R12). Add `out/` to `.gitignore`.
+- [X] T034 [US2] Review the snapshots yourself against `contracts/diag-screens.md`. Check numerically from the PNGs:
   - the border pixels on all four edges are white
   - the line field alternates exactly
   - the bar colours are correct
 
   Fix and re-render until all three hold, and note the result in the commit message.
-- [ ] T035 [US2] Implement `src/platform/display.h/.cpp` (research R7, R8 L0):
+- [X] T035 [US2] Implement `src/platform/display.h/.cpp` (research R7, R8 L0):
   - `esp_lcd_new_rgb_panel` with the pins and timing from `board.h`, PCLK 16 MHz, `pclk_active_neg = 1`, `num_fbs = 1`, `fb_in_psram = 1`, no bounce buffer
   - LVGL display with `lv_display_set_buffers` on one 800×40 RGB565 buffer from `heap_caps_malloc(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)`, PARTIAL mode
   - a flush callback that copies the area into the panel's frame buffer (`esp_lcd_rgb_panel_get_frame_buffer`) and calls `lv_display_flush_ready`
@@ -196,9 +196,9 @@ description: "Task list for Slice 1: Silent Board Bring-up"
   - `display_set_pclk(uint32_t)` wrapping `esp_lcd_rgb_panel_set_pclk`, for ladder L2
   - initialisation on core 1
   - the self-test Display result
-- [ ] T036 [US2] In `src/platform/board.h`, set the orientation side constant from the vendor board drawing `Datasheet/LI070DE42Y_0812.dwg` or the product photos, with a citation comment. If the vendor material does not settle it, ask the owner which edge the USB-C connector is on and record the answer (contracts/diag-screens.md).
-- [ ] T037 [US2] Wire the display into `src/app/bringup_app.cpp` in the plan startup order: boot screen right after display init and before touch start-up and storage mount, diagnostic screen as soon as touch start-up ends (≤ 5 s, SC-006), log `[ms] diag screen shown` and keep the time for the report line `boot-to-diag`, `lv_timer_handler()` in `loop()`, the view model refreshed once per second. If display init fails, everything else still runs and the report says so (spec edge case).
-- [ ] T038 [US2] **Stage 2a owner check**: give the owner B1–B4 (and D1 and A3, since the backlight is on, see Phase 7). Record the answers. Add the first row to the "Stack decision log" in `specs/001-silent-board-bringup/research.md` (L0, idle).
+- [X] T036 [US2] In `src/platform/board.h`, set the orientation side constant from the vendor board drawing `Datasheet/LI070DE42Y_0812.dwg` or the product photos, with a citation comment. If the vendor material does not settle it, ask the owner which edge the USB-C connector is on and record the answer (contracts/diag-screens.md).
+- [X] T037 [US2] Wire the display into `src/app/bringup_app.cpp` in the plan startup order: boot screen right after display init and before touch start-up and storage mount, diagnostic screen as soon as touch start-up ends (≤ 5 s, SC-006), log `[ms] diag screen shown` and keep the time for the report line `boot-to-diag`, `lv_timer_handler()` in `loop()`, the view model refreshed once per second. If display init fails, everything else still runs and the report says so (spec edge case).
+- [X] T038 [US2] **Stage 2a owner check**: give the owner B1–B4 (and D1 and A3, since the backlight is on, see Phase 7). Record the answers. Add the first row to the "Stack decision log" in `specs/001-silent-board-bringup/research.md` (L0, idle).
 
 **Checkpoint**: the picture is confirmed idle. Touch and stress build on it.
 
@@ -264,7 +264,7 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 ### Tests for User Story 4 (write first, must fail)
 
-- [ ] T047 [P] [US4] Write `test/test_diag/test_touch_judge.cpp`:
+- [X] T047 [P] [US4] Write `test/test_diag/test_touch_judge.cpp`:
   - target centres (20,20), (779,20), (20,459), (779,459)
   - pass when |dx| ≤ 10 and |dy| ≤ 10, fail at 11
   - assignment only within 60 px of a target
@@ -273,15 +273,15 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 ### Implementation for User Story 4
 
-- [ ] T048 [US4] Implement `lib/core/src/nvp/diag/touch_judge.h/.cpp` until T047 passes.
-- [ ] T049 [US4] Implement `src/platform/touch_gt911.h/.cpp` (research R5):
+- [X] T048 [US4] Implement `lib/core/src/nvp/diag/touch_judge.h/.cpp` until T047 passes.
+- [X] T049 [US4] Implement `src/platform/touch_gt911.h/.cpp` (research R5):
   - **Start-up**: up to 10 attempts. Probe 0x30 and 0x5D. When either is missing: `aux_send(250)`, GPIO1 output low for 120 ms, back to input, wait 100 ms.
   - **Self-test**: product ID registers read `911`.
   - **Polling**: `read_point()` reads status 0x814E, takes the first point from 0x8150 when the buffer-ready bit is set, then writes 0 to 0x814E.
   - No interrupt is required. Polling runs at about 30 Hz from the LVGL input device.
-- [ ] T050 [US4] Register an LVGL pointer input device in `src/platform/display.cpp`, fed by `touch_gt911`; `src/app` receives raw points through a callback. Feed raw points to `touch_judge`. Show the ring marker and coordinates, or `no touch`, in `lib/ui/src/diag/diag_screen.cpp`, and colour the corner targets with `+dx,+dy`. No sound or vibration: there is none to give (SIL-06).
-- [ ] T051 [US4] Add the corner results to the report (`report.cpp` and `contracts/serial-console.md`, line `touch corners:`). Extend T012 with that line. Render the `diag_touch` snapshot and review it.
-- [ ] T052 [US4] **Stage 2b owner check**: C1, C2 and A6. Record the answers.
+- [X] T050 [US4] Register an LVGL pointer input device in `src/platform/display.cpp`, fed by `touch_gt911`; `src/app` receives raw points through a callback. Feed raw points to `touch_judge`. Show the ring marker and coordinates, or `no touch`, in `lib/ui/src/diag/diag_screen.cpp`, and colour the corner targets with `+dx,+dy`. No sound or vibration: there is none to give (SIL-06).
+- [X] T051 [US4] Add the corner results to the report (`report.cpp` and `contracts/serial-console.md`, line `touch corners:`). Extend T012 with that line. Render the `diag_touch` snapshot and review it.
+- [X] T052 [US4] **Stage 2b owner check**: C1, C2 and A6. Record the answers.
 
 ---
 
@@ -292,8 +292,8 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 **Independent test**: the backlight is on at boot. The report and screen say `backlight: full (dimming disabled)`. No backlight command exists.
 
 - [X] T053 [US5] Implement `src/platform/backlight.h/.cpp`: the single function `backlight_full_on()`, which calls `aux_send(0)` and records the Backlight self-test (acknowledged or failed). Call it in `bringup_app::start()` right after the silence result line (plan startup step 3). No other backlight API.
-- [ ] T054 [US5] Confirm that T021 covers rejection of 1…245, and that the parser test T013 rejects `bl` and `dim`. Show `Backlight: full (dimming disabled)` on the diagnostic screen (T032 view model) and in the report (T012).
-- [ ] T055 [US5] Owner check D1 and A3, asked together with Stage 2a (T038). Record the answers.
+- [X] T054 [US5] Confirm that T021 covers rejection of 1…245, and that the parser test T013 rejects `bl` and `dim`. Show `Backlight: full (dimming disabled)` on the diagnostic screen (T032 view model) and in the report (T012).
+- [X] T055 [US5] Owner check D1 and A3, asked together with Stage 2a (T038). Record the answers.
 
 ---
 
@@ -307,7 +307,7 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 - Unplug the panel cable: the report still prints in full.
 
 - [ ] T056 [US6] Fill every `ReportInput` field from live state in `src/app/bringup_app.cpp`: firmware, board, silence, all self-tests, Wi-Fi line, backlight, corners, heap, PSRAM, stress, uptime. Print it at the end of start-up and on `report`.
-- [ ] T057 [US6] Show the report lines on the diagnostic screen's info panel, with failed results in the alert colour (FR-027). Re-render the `diag_failures` snapshot and review it.
+- [X] T057 [US6] Show the report lines on the diagnostic screen's info panel, with failed results in the alert colour (FR-027). Re-render the `diag_failures` snapshot and review it.
 - [ ] T058 [US6] Make every self-test independent. A throwing or timing-out test is caught and recorded as Failed with a reason, and the next test still runs. Display failure must not stop the serial report (spec edge case).
 - [ ] T059 [US6] Owner check F1 (Stage 1), and F2 after Stage 3. Record the pasted reports.
 
