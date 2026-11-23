@@ -1,0 +1,4 @@
+# Factory flash images may hold Wi-Fi details stored by the vendor firmware (SEC-04).
+# This file keeps the folder ignored even if the root .gitignore is overwritten.
+*
+!.gitignore

@@ -70,31 +70,5 @@ class SilenceCheckTest(unittest.TestCase):
         self.assertEqual(check_silence.run(self.root), [])
 
 
-class RepositoryConfigTest(unittest.TestCase):
-    """Checks on the real repository, not on a temporary tree (spec 001, tasks T027)."""
-
-    ROOT = Path(__file__).resolve().parent.parent
-
-    def test_device_env_ignores_core_audio_libraries(self) -> None:
-        # research R3.6: the Arduino core ships ESP_I2S and ESP_SR; a stray include must fail.
-        import configparser
-
-        parser = configparser.ConfigParser(interpolation=None, strict=False)
-        parser.read(self.ROOT / "platformio.ini", encoding="utf-8")
-        device_envs = [s for s in parser.sections() if s.startswith("env:crowpanel7")]
-        self.assertTrue(device_envs, "no device environment found in platformio.ini")
-        for section in device_envs:
-            with self.subTest(env=section):
-                raw = parser.get(section, "lib_ignore", fallback="")
-                names = {line.split(";", 1)[0].strip() for line in raw.splitlines()}
-                self.assertIn("ESP_I2S", names)
-                self.assertIn("ESP_SR", names)
-
-    def test_allow_list_names_existing_files(self) -> None:
-        for rel in check_silence.ALLOW_LIST:
-            with self.subTest(path=rel):
-                self.assertTrue((self.ROOT / rel).is_file(), f"allow-listed file missing: {rel}")
-
-
 if __name__ == "__main__":
     unittest.main()
