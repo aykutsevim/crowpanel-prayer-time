@@ -2,7 +2,7 @@
 // User-Agent and release tag (Slice 9). Pure C++, no platform headers (05-architecture.md §4).
 #pragma once
 
-#define NVP_VERSION_STRING "0.0.0"
+#define NVP_VERSION_STRING "0.1.0"
 
 namespace nvp {
 
