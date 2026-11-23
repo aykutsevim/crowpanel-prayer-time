@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "nvp/diag/selftest.h"
+#include "nvp/diag/touch_judge.h"
 
 namespace nvp::diag {
 
@@ -40,6 +41,7 @@ struct ReportInput {
     SilenceLine silence;
     SelfTestResult tests[kTestCount];
     WifiLine wifi;
+    CornerResult corners[kCornerCount];  // FR-014a, in Corner order
     uint32_t heap_internal_free = 0;
     uint32_t heap_internal_largest = 0;
     uint32_t heap_psram_free = 0;

@@ -5,6 +5,7 @@
 
 void run_selftest_report_tests();
 void run_command_parser_tests();
+void run_touch_judge_tests();
 
 void setUp() {}
 void tearDown() {}
@@ -13,5 +14,6 @@ int main(int, char**) {
     UNITY_BEGIN();
     run_selftest_report_tests();
     run_command_parser_tests();
+    run_touch_judge_tests();
     return UNITY_END();
 }

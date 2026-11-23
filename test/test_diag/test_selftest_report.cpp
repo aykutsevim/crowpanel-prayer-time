@@ -51,6 +51,7 @@ const char* kStage1Report =
     "selftest wifi: skipped (not in this stage)\n"
     "wifi: off\n"
     "backlight: full (dimming disabled)\n"
+    "touch corners: TL not touched TR not touched BL not touched BR not touched\n"
     "heap internal: 182340 free, 160000 largest\n"
     "heap psram: 7340032 free\n"
     "stress: off\n"
@@ -211,6 +212,18 @@ static void test_ssid_control_characters_cannot_break_lines() {
     TEST_ASSERT_NOT_NULL(std::strstr(buf, "\nwifi: joining a?b?c\n"));
 }
 
+static void test_touch_corners_line() {
+    // contracts/serial-console.md: TL passed (+2,-1) TR not touched BL failed (+14,+3) BR passed (0,0)
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.corners[0] = CornerResult{CornerState::Passed, 2, -1};
+    in.corners[2] = CornerResult{CornerState::Failed, 14, 3};
+    in.corners[3] = CornerResult{CornerState::Passed, 0, 0};
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(
+        buf, "\ntouch corners: TL passed (+2,-1) TR not touched BL failed (+14,+3) BR passed (0,0)\n"));
+}
+
 static void test_report_never_contains_secret() {
     // FR-024, FR-026: ReportInput has no password field, so a password has nowhere to go.
     // The SSID may look like a password; it is the network name and is shown as such.
@@ -252,6 +265,7 @@ void run_selftest_report_tests() {
     RUN_TEST(test_boot_to_diag_value);
     RUN_TEST(test_wifi_lines);
     RUN_TEST(test_ssid_control_characters_cannot_break_lines);
+    RUN_TEST(test_touch_corners_line);
     RUN_TEST(test_report_never_contains_secret);
     RUN_TEST(test_small_buffer_is_truncated_safely);
 }

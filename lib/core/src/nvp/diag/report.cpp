@@ -92,6 +92,34 @@ void add_wifi(Writer& w, const WifiLine& wifi) {
     w.add("\n");
 }
 
+// Signed error without a sign on zero, as in contracts/serial-console.md: (+2,-1), (0,0).
+void add_signed(Writer& w, int v) {
+    if (v > 0) {
+        w.add("+%d", v);
+    } else {
+        w.add("%d", v);
+    }
+}
+
+void add_corners(Writer& w, const CornerResult* corners) {
+    static const char* const kNames[kCornerCount] = {"TL", "TR", "BL", "BR"};
+    w.add("touch corners:");
+    for (size_t i = 0; i < kCornerCount; ++i) {
+        const CornerResult& c = corners[i];
+        w.add(" %s ", kNames[i]);
+        if (c.state == CornerState::NotTouched) {
+            w.add("not touched");
+            continue;
+        }
+        w.add("%s (", c.state == CornerState::Passed ? "passed" : "failed");
+        add_signed(w, c.dx);
+        w.add(",");
+        add_signed(w, c.dy);
+        w.add(")");
+    }
+    w.add("\n");
+}
+
 }  // namespace
 
 size_t format_silence_line(const SilenceLine& silence, char* out, size_t cap) {
@@ -122,6 +150,7 @@ size_t format(const ReportInput& in, char* out, size_t cap) {
     }
     add_wifi(w, in.wifi);
     w.add("backlight: full (dimming disabled)\n");
+    add_corners(w, in.corners);
     w.add("heap internal: %lu free, %lu largest\n", static_cast<unsigned long>(in.heap_internal_free),
           static_cast<unsigned long>(in.heap_internal_largest));
     w.add("heap psram: %lu free\n", static_cast<unsigned long>(in.heap_psram_free));
