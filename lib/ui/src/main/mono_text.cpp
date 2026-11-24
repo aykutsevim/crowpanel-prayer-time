@@ -14,6 +14,7 @@ struct Mono {
     int32_t digit_cell;
     int32_t colon_cell;
     int32_t dash_cell;
+    int32_t space_cell;  // the font's own space: grouped digits ("4827 1935", spec 004 references 15, 17)
     lv_color_t color;
     char text[16];
 };
@@ -27,6 +28,7 @@ constexpr float kDashAdvance = 0.328f, kDashWidth = 0.274f, kDashThick = 0.104f,
 int32_t cell(const Mono& m, char c) {
     if (c == ':' || c == '.') return m.colon_cell;
     if (c == '-') return m.dash_cell;
+    if (c == ' ') return m.space_cell;
     return m.digit_cell;
 }
 
@@ -84,6 +86,7 @@ lv_obj_t* mono_text_create(lv_obj_t* parent, const lv_font_t* font, int32_t size
                        static_cast<int32_t>(std::lround(0.475 * size_px)),
                        static_cast<int32_t>(std::lround(0.252 * size_px)),
                        static_cast<int32_t>(std::lround(kDashAdvance * size_px)),
+                       static_cast<int32_t>(lv_font_get_glyph_width(font, ' ', 0)),
                        tok::ink(),
                        {}};
     lv_obj_set_user_data(obj, m);
