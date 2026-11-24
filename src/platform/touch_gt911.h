@@ -24,4 +24,8 @@ Result begin();
 // the controller has no new data. Never produces sound or vibration (SIL-06).
 bool read_point(int16_t* x, int16_t* y);
 
+// Number of touch points the controller reported at the last read_point() (status register
+// 0x814E bits 3..0; spec 003 research R13). Used for the hidden two-finger gesture.
+uint8_t last_points();
+
 }  // namespace platform::touch

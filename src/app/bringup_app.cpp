@@ -3,15 +3,26 @@
 #include <cstdio>
 #include <cstring>
 
+#include "app/clock.h"
 #include "app/net_worker.h"
 #include "app/serial_console.h"
 #include "diag/boot_screen.h"
 #include "diag/diag_screen.h"
 #include "diag/settings_screen.h"
 #include "diag/view_model.h"
+#include "main/fixture_view.h"
+#include "main/main_screen.h"
+#include "main/main_view.h"
 #include "nvp/diag/report.h"
 #include "nvp/diag/selftest.h"
 #include "nvp/diag/touch_judge.h"
+#include "nvp/engine/calendar.h"
+#include "nvp/engine/engine.h"
+#include "nvp/screen/fixtures.h"
+#include "nvp/screen/gesture.h"
+#include "nvp/screen/system_state.h"
+#include "nvp/time/rtc_codec.h"
+#include "nvp/time/zone.h"
 #include "nvp/version.h"
 #include "platform/audio_off.h"
 #include "platform/backlight.h"
@@ -55,6 +66,19 @@ struct TouchState {
 TouchState g_touch;
 char g_status[48] = "";
 
+// --- Spec 003: the main screen is the start screen; diagnostics are a hidden mode (FR-022). ---
+enum class Mode : uint8_t { Main, Diagnostic };
+Mode g_mode = Mode::Main;
+lv_obj_t* g_main_screen = nullptr;
+nvp::screen::TwoFingerHold g_gesture;
+bool g_enter_diag = false;  // set by the gesture inside the touch callback, acted on in loop()
+
+// Developer overrides (SYS-06, contracts/serial-console.md).
+bool g_forced = false;
+nvp::screen::SystemState g_forced_state = nvp::screen::SystemState::Ok;
+int16_t g_forced_days = 0;
+int g_fixture = 0;  // 1..14 while a fixture is shown, else 0
+
 nvp::diag::SilenceLine silence_line() {
     const platform::silence::SilenceState& s = platform::silence::silence_state();
     nvp::diag::SilenceLine line;
@@ -79,6 +103,55 @@ void update_wifi_test(const net::Snapshot& n) {
     } else {
         nvp::diag::set_result(t, Outcome::Skipped, "no scan or connection yet");
     }
+}
+
+nvp::engine::Moment moment_of(int64_t local) {
+    const int64_t days = local >= 0 ? local / 86400 : -((-local + 86399) / 86400);
+    const int32_t sod = static_cast<int32_t>(local - days * 86400);
+    return nvp::engine::Moment{nvp::engine::to_date(static_cast<nvp::engine::DayNumber>(days)), sod};
+}
+
+// What the main screen shows now (spec 003 FR-019, OD3-2 as revised, constitution II):
+//  - a fixture, when one was called up over the serial port (sample data, on purpose);
+//  - otherwise the board clock with no prayer times loaded in this slice: `no_data`
+//    (reference 14), or `no_time` when the clock is not valid.
+// A forced state (development command) replaces the chosen state.
+void build_main_view(nvp::engine::MainView& v, nvp::ui::SystemView& s) {
+    const clock::Now n = clock::now();
+    if (g_fixture != 0) {
+        const nvp::screen::Fixture* f = nvp::screen::fixture(g_fixture);
+        const int32_t sod = (f->second_of_day < 0 || !n.valid) ? -1 : moment_of(n.local).second_of_day;
+        nvp::ui::fixture_view_at(g_fixture, sod, v, s);
+    } else {
+        s = nvp::ui::SystemView{};
+        if (n.valid) {
+            nvp::engine::Input in;
+            in.now = moment_of(n.local);
+            nvp::engine::evaluate(in, v);  // no records loaded: has_data is false
+            s.state = nvp::screen::SystemState::NoData;
+        } else {
+            nvp::engine::evaluate_no_time(nullptr, nvp::engine::Settings{}, v);
+            s.state = nvp::screen::SystemState::NoTime;
+        }
+    }
+    if (g_forced) {
+        s.state = g_forced_state;
+        s.days_left = g_forced_days;
+    }
+}
+
+nvp::screen::SystemState current_state() {
+    static nvp::engine::MainView v;  // large; not on the stack
+    nvp::ui::SystemView s;
+    build_main_view(v, s);
+    return s.state;
+}
+
+void update_main() {
+    static nvp::engine::MainView v;
+    nvp::ui::SystemView s;
+    build_main_view(v, s);
+    nvp::ui::main_screen_update(v, s);
 }
 
 void print_report() {
@@ -107,6 +180,18 @@ void print_report() {
     in.uptime_s = platform::sysinfo::uptime_ms() / 1000;
     in.reset_reason = snap.reset_reason;
     in.coredump_bytes = snap.coredump_bytes;
+    char clock_line[64];
+    clock::describe(clock_line, sizeof clock_line);
+    in.clock_line = clock_line;
+    char screen_line[48];
+    if (g_mode == Mode::Main) {
+        std::snprintf(screen_line, sizeof screen_line, "main (state %s%s)", nvp::screen::state_name(current_state()),
+                      g_fixture != 0 ? ", fixture" : "");
+    } else {
+        std::snprintf(screen_line, sizeof screen_line, "%s",
+                      g_screen == ui::ActiveScreen::Settings ? "settings" : "diagnostic");
+    }
+    in.screen_line = screen_line;
     nvp::diag::report::format(in, g_report, sizeof g_report);
     platform::console::write(g_report);
 }
@@ -166,6 +251,149 @@ void cmd_test_mix() {
     }
 }
 
+void update_view();
+
+// --- Modes (spec 003 FR-022, FR-023) ---
+
+void enter_diag() {
+    g_enter_diag = false;
+    if (g_mode == Mode::Diagnostic || g_diag_screen == nullptr) return;
+    g_mode = Mode::Diagnostic;
+    g_screen = ui::ActiveScreen::Diagnostic;
+    g_confirm = ui::Confirm::None;
+    update_view();
+    lv_screen_load(g_diag_screen);
+    platform::console::write("diagnostic mode\n");
+}
+
+void enter_main() {
+    if (g_mode == Mode::Main || g_main_screen == nullptr) return;
+    if (net::snapshot().stress_running) stress(false);  // leaving the mode stops stress (FR-023)
+    g_mode = Mode::Main;
+    update_main();
+    lv_screen_load(g_main_screen);
+    platform::console::write("main screen\n");
+}
+
+void on_main_screen(void*) { enter_main(); }
+
+// --- Development commands (SYS-06; contracts/serial-console.md of spec 003) ---
+
+void format_date_time(int64_t seconds, char* out, size_t cap) {
+    const nvp::engine::Moment m = moment_of(seconds);
+    std::snprintf(out, cap, "%04d-%02u-%02u %02ld:%02ld:%02ld", static_cast<int>(m.date.year), m.date.month,
+                  m.date.day, static_cast<long>(m.second_of_day / 3600), static_cast<long>((m.second_of_day / 60) % 60),
+                  static_cast<long>(m.second_of_day % 60));
+}
+
+int64_t local_of(const nvp::diag::ParsedCommand& c) {
+    const nvp::engine::Date d{static_cast<int16_t>(c.year), static_cast<uint8_t>(c.month), static_cast<uint8_t>(c.day)};
+    return static_cast<int64_t>(nvp::engine::to_day_number(d)) * 86400 + c.hour * 3600 + c.minute * 60 + c.second;
+}
+
+void screen_command(const nvp::diag::ParsedCommand& c) {
+    using nvp::diag::Command;
+    char a[40];
+    char b[40];
+    switch (c.command) {
+        case Command::Diag:
+            if (g_mode == Mode::Main) {
+                enter_diag();
+            } else {
+                platform::console::write("already in diagnostic mode\n");
+            }
+            return;
+        case Command::Main:
+            if (g_mode == Mode::Main) {
+                platform::console::write("already on the main screen\n");
+            } else {
+                enter_main();
+            }
+            return;
+        case Command::TimeGet: {
+            const nvp::time::RtcReading r = clock::read_rtc();
+            if (r.valid) {
+                format_date_time(r.utc, a, sizeof a);
+                format_date_time(nvp::time::utc_to_local(r.utc), b, sizeof b);
+                platform::console::printf("rtc: %s UTC (%s local), valid\n", a, b + 11);
+            } else {
+                platform::console::printf("rtc: not valid (%s)\n", nvp::time::reason_name(r.reason));
+            }
+            return;
+        }
+        case Command::TimeSet: {
+            const char* why = "";
+            const int64_t local = local_of(c);
+            if (clock::set_rtc_local(local, &why)) {
+                g_fixture = 0;
+                format_date_time(nvp::time::local_to_utc(local), a, sizeof a);
+                platform::console::printf("rtc set: %s UTC\n", a);
+            } else {
+                platform::console::printf("rtc set failed (%s)\n", why);
+            }
+            break;
+        }
+        case Command::ClockRtc:
+            clock::use_rtc();
+            g_fixture = 0;
+            platform::console::write("clock: rtc\n");
+            break;
+        case Command::ClockSim:
+            clock::use_sim(local_of(c), false);
+            format_date_time(local_of(c), a, sizeof a);
+            platform::console::printf("clock: sim %s x1\n", a);
+            break;
+        case Command::ClockSpeed:
+            if (clock::set_speed(static_cast<uint16_t>(c.number))) {
+                platform::console::printf("clock: speed x%ld\n", static_cast<long>(c.number));
+            } else {
+                platform::console::write("refused: the board clock has no speed (use clock sim first)\n");
+            }
+            return;
+        case Command::ClockPause:
+            clock::pause();
+            platform::console::write("clock: paused\n");
+            break;
+        case Command::ClockRun:
+            clock::run();
+            platform::console::write("clock: running\n");
+            break;
+        case Command::StateForce:
+            g_forced = true;
+            g_forced_state = c.state;
+            g_forced_days = static_cast<int16_t>(c.number);
+            if (c.state == nvp::screen::SystemState::CacheEnding) {
+                platform::console::printf("state: forced %s %ld\n", nvp::screen::state_name(c.state), static_cast<long>(c.number));
+            } else {
+                platform::console::printf("state: forced %s\n", nvp::screen::state_name(c.state));
+            }
+            break;
+        case Command::StateAuto:
+            g_forced = false;
+            platform::console::write("state: auto\n");
+            break;
+        case Command::Fixture: {
+            const nvp::screen::Fixture* f = nvp::screen::fixture(c.number);
+            g_fixture = c.number;
+            g_forced = false;
+            const int32_t sod = f->second_of_day < 0 ? 0 : f->second_of_day;
+            const int64_t local = static_cast<int64_t>(nvp::engine::to_day_number(nvp::engine::Date{2026, 11, 17})) * 86400 + sod;
+            clock::use_sim(local, true);
+            platform::console::printf("fixture %ld: %s\n", static_cast<long>(c.number), f->reference);
+            break;
+        }
+        case Command::FixtureOff:
+            g_fixture = 0;
+            g_forced = false;
+            clock::use_rtc();
+            platform::console::write("fixture: off\n");
+            break;
+        default:
+            return;
+    }
+    if (g_mode == Mode::Main) update_main();
+}
+
 const ConsoleHandlers kHandlers = [] {
     ConsoleHandlers h;
     h.report = print_report;
@@ -178,6 +406,7 @@ const ConsoleHandlers kHandlers = [] {
     h.test_scan = cmd_test_scan;
     h.test_https = cmd_test_https;
     h.test_mix = cmd_test_mix;
+    h.screen_command = screen_command;
     return h;
 }();
 
@@ -219,7 +448,13 @@ void on_confirm_yes(void*) {
 // touch-down point, on the diagnostic screen only. No sound or vibration exists (SIL-06).
 bool read_touch(int16_t* x, int16_t* y) {
     const bool pressed = platform::touch::read_point(x, y);
-    if (pressed && !g_touch.pressed && g_screen == ui::ActiveScreen::Diagnostic) g_judge.judge(*x, *y);
+    if (g_mode == Mode::Main) {
+        // Hidden gesture: two fingers held for 5 s (spec 003 FR-022). The main screen has no
+        // clickable object, so a single tap does nothing. The switch happens in loop().
+        if (g_gesture.feed(platform::sysinfo::uptime_ms(), platform::touch::last_points())) g_enter_diag = true;
+    } else if (pressed && !g_touch.pressed && g_screen == ui::ActiveScreen::Diagnostic) {
+        g_judge.judge(*x, *y);
+    }
     g_touch.pressed = pressed;
     g_touch.x = *x;
     g_touch.y = *y;
@@ -298,6 +533,10 @@ void start() {
     // Fixed system facts, read once before the display starts (no flash access later, research R8).
     platform::sysinfo::init();
 
+    // The board's real-time clock (spec 003 OD3-1, FR-026): read once, after the silence step
+    // started the I2C bus.
+    clock::start();
+
     // Silence self-test: the result of the step that already ran first (FR-001a).
     const platform::silence::SilenceState& s = platform::silence::silence_state();
     if (s.acknowledged) {
@@ -341,14 +580,19 @@ void start() {
         actions.confirm_no = on_confirm_no;
         actions.cancel_setup = on_cancel_setup;
         actions.back = on_back;
+        actions.main_screen = on_main_screen;
         g_diag_screen = ui::diag_screen_create(usb_edge(), actions);
         g_settings_screen = ui::settings_screen_create(actions);
         g_screen = ui::ActiveScreen::Diagnostic;
         update_view();
-        lv_screen_load(g_diag_screen);
+        // Spec 003: the device starts on the main screen; diagnostics are a hidden mode (FR-019).
+        g_main_screen = nvp::ui::main_screen_create();
+        g_mode = Mode::Main;
+        update_main();
+        lv_screen_load(g_main_screen);
         platform::display::refresh_now();
         g_boot_to_diag_ms = platform::sysinfo::uptime_ms();
-        platform::console::printf("[%8lu] diag screen shown\n", static_cast<unsigned long>(g_boot_to_diag_ms));
+        platform::console::printf("[%8lu] main screen shown\n", static_cast<unsigned long>(g_boot_to_diag_ms));
     }
 
     // Step 7: storage mount and self-test (after the screen, a first-boot format can take seconds).
@@ -369,9 +613,14 @@ void loop() {
     if (!g_display_ok) return;
     static uint32_t last = 0;
     const uint32_t now = platform::sysinfo::uptime_ms();
+    if (g_enter_diag) enter_diag();
     if (now - last >= kViewRefreshMs) {
         last = now;
-        update_view();
+        if (g_mode == Mode::Main) {
+            update_main();  // touches only what changed (UI-03)
+        } else {
+            update_view();
+        }
     }
     platform::display::handle();
 }

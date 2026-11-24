@@ -74,6 +74,8 @@ Snapshot read() {
 
 uint32_t uptime_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 
+int64_t uptime_us() { return esp_timer_get_time(); }
+
 void note_peripheral_init() { ++g_inits; }
 
 uint32_t peripheral_inits() { return g_inits; }

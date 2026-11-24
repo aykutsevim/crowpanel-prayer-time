@@ -3,6 +3,8 @@
 // No Arduino, ESP-IDF or FreeRTOS header here (constitution VI).
 #pragma once
 
+#include "nvp/diag/command.h"
+
 namespace app {
 
 struct ConsoleHandlers {
@@ -16,6 +18,8 @@ struct ConsoleHandlers {
     void (*test_scan)() = nullptr;
     void (*test_https)() = nullptr;
     void (*test_mix)() = nullptr;
+    // Spec 003: diag, main, time, clock, state and fixture commands, and invalid arguments.
+    void (*screen_command)(const nvp::diag::ParsedCommand& c) = nullptr;
 };
 
 // Call from loop(): handles at most one complete line per call.
