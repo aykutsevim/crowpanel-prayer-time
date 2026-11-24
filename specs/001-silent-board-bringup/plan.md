@@ -16,12 +16,13 @@ Research changed the silence design. On V1.4 the amplifier control, the buzzer a
 
 ## Technical Context
 
-**Language/Version**: C++17 (gnu++17). Firmware uses Arduino-ESP32 3.3.12 (ESP-IDF 5.5.5) via PlatformIO `espressif32@8.0.0`, with packages pinned exactly (R9). Host code uses the same C++17 on `native@1.2.1`. Python 3 for tools.
+**Language/Version**: C++17 (gnu++17). Firmware uses plain **ESP-IDF 5.5.5** (`framework = espidf`, `framework-espidf@4.50505.0`) via PlatformIO `espressif32@8.0.0`, pinned exactly (R9). Until 2026-11-24 it used Arduino-ESP32 3.3.12; the display needed build options the precompiled Arduino libraries cannot have (research R8 L4, [decision 0002](../../docs/decisions/0002-display-stack.md)). Host code uses the same C++17 on `native@1.2.1`. Python 3 for tools.
 
 **Primary Dependencies**:
 
 - `lvgl/lvgl@9.6.0`
-- Arduino core built-ins: `esp_lcd` RGB panel API, Wire, WiFi, WebServer, NetworkClientSecure, HTTPClient, Preferences, LittleFS
+- ESP-IDF components: `esp_lcd` RGB panel, `i2c_master`, UART driver, `esp_wifi`/`esp_netif`, `esp_http_server`, `esp_http_client` with `esp_crt_bundle_attach`, `nvs_flash`
+- Managed component `joltwallet/littlefs ==1.22.3` (`src/idf_component.yml`; the version Arduino 3.3.12 used, so the partition stays readable)
 - No other third-party libraries. A GT911 reader is written in-house against the vendor-supplied datasheet (R5).
 
 **Storage**:
@@ -65,14 +66,14 @@ Research changed the silence design. On V1.4 the amplifier control, the buzzer a
 
 | Principle | Status | How this plan complies |
 |---|---|---|
-| I. Silence | Pass | `audio_off()` is the first call in `setup()`. It parks GPIO 4/5/6 and sends 249 and 247 to the auxiliary controller with retries (R3). The gate rejects 246 and 248. No I²S, no tone, no LEDC. `ESP_I2S` and `ESP_SR` are in `lib_ignore`. The silence check allow-list stays `src/platform/audio_off.*` and `test/test_audio_off/*`. FR-001a blocks stress and Wi-Fi when the silence step is not acknowledged. The backlight is never dimmed (OD1 = C): the auxiliary controller's PWM frequency is undocumented, so the gate allows only "full on" (byte 0) and the ESP32 generates no PWM at all. Whether the auxiliary controller still switches the backlight driver at byte 0 is also undocumented (R6), so inaudibility is shown by owner checks A3 and D1, not claimed from paper (SIL-04). |
+| I. Silence | Pass | `audio_off()` is the first call in `app_main()`. It parks GPIO 4/5/6 and sends 249 and 247 to the auxiliary controller with retries (R3). The gate rejects 246 and 248. No I²S, no tone, no LEDC. No audio component is required (`src/CMakeLists.txt` lists the components used), and every device build checks the linked image for I2S, DAC, LEDC and codec symbols (`tools/check_elf_silence.py`). Under Arduino, `ESP_I2S` and `ESP_SR` were in `lib_ignore`. The silence check allow-list stays `src/platform/audio_off.*` and `test/test_audio_off/*`. FR-001a blocks stress and Wi-Fi when the silence step is not acknowledged. The backlight is never dimmed (OD1 = C): the auxiliary controller's PWM frequency is undocumented, so the gate allows only "full on" (byte 0) and the ESP32 generates no PWM at all. Whether the auxiliary controller still switches the backlight driver at byte 0 is also undocumented (R6), so inaudibility is shown by owner checks A3 and D1, not claimed from paper (SIL-04). |
 | II. Truthful display | Pass | No times or clock shown. The report says "acknowledged" (not "silent"), "skipped" (not "passed"), and "configured / not detected" for the revision. |
 | III. Design contract | Pass | Only engineering screens, in English and outside `02-ui-spec.md` (spec assumptions). The hidden-mode gesture must not collide with `02-ui-spec.md` §8 (FR-007a). It is defined when the product screen exists (Slice 3). Proposed: two fingers held for 5 s, which is not used by §8. |
 | IV. Offline first | Pass | Boot never waits for the network. Wi-Fi and stress run in a background task. |
-| V. Verify, do not assume | Pass | All pins and commands cited from vendor sources (research R2–R6). Undocumented points listed as owner questions I1…I8 and items O3, O4. All versions exact (R9), including the Arduino package build via `platform_packages`. |
-| VI. Testable core | Pass | Pure logic in `lib/core/src/nvp/diag/` with tests written first. The command gate is a header-only pure function in `src/platform/audio_off.h`, tested on the host. `lib/ui` diagnostic screens depend only on LVGL and `lib/core`, and render on the host. Only `src/platform` includes Arduino, ESP-IDF or FreeRTOS headers: serial byte I/O (`console_io`) and task creation (`tasks`) live there, and `src/app` calls them. |
+| V. Verify, do not assume | Pass | All pins and commands cited from vendor sources (research R2–R6). Undocumented points listed as owner questions I1…I8 and items O3, O4. All versions exact (R9), including the `framework-espidf` package via `platform_packages` and the managed component in `src/idf_component.yml`. |
+| VI. Testable core | Pass | Pure logic in `lib/core/src/nvp/diag/` with tests written first. The command gate is a header-only pure function in `src/platform/audio_off.h`, tested on the host. `lib/ui` diagnostic screens depend only on LVGL and `lib/core`, and render on the host. Only `src/platform` (and the entry point `src/main.cpp`) includes ESP-IDF or FreeRTOS headers: serial byte I/O (`console_io`) and task creation (`tasks`) live there, and `src/app` calls them. |
 | VII. Owner in the loop | Pass | [owner-checklist.md](owner-checklist.md) is created now. Answers are recorded per stage. |
-| VIII. Small, private, polite | Pass | One allowed host, at most 1 request every 30 s, User-Agent set. Built-in CA bundle; `setInsecure` and one-argument `HTTPClient::begin("https…")` are forbidden by a source check. Passwords are never printed or served. The AP password appears only on the device screen. |
+| VIII. Small, private, polite | Pass | One allowed host, at most 1 request every 30 s, User-Agent set. Built-in CA bundle (`esp_crt_bundle_attach`); `tools/check_tls.py` rejects a client configuration without a CA, `skip_cert_common_name_check`, insecure ESP-TLS options, and (from the Arduino period) `setInsecure` and one-argument `HTTPClient::begin("https…")`. Passwords are never printed or served. The AP password appears only on the device screen. |
 | IX. Resource discipline | **Justified deviation** | Stress mode writes flash about every 10 s while it runs. That conflicts with "flash writes are rare" (SYS-03). See Complexity Tracking. Size is reported every build. |
 | X. Simplicity and scope | **Justified deviation** | Wi-Fi provisioning comes forward from Slice 4, and the diagnostics stay in the product. Both are owner decisions recorded in the spec (2026-11-20). FR-033 corrects the roadmap, the architecture doc and the constitution in this branch. |
 
@@ -109,12 +110,14 @@ specs/001-silent-board-bringup/
 ### Source code (repository root)
 
 ```text
-boards/crowpanel7_advance.json        # 16 MB, qio_opi (R2)
+boards/crowpanel7_advance.json        # 16 MB, QIO flash, octal PSRAM (R2)
+sdkconfig.defaults                    # ESP-IDF options: PSRAM, XIP from PSRAM, IRAM-safe RGB ISR, 64 B cache line (R8 L4)
+CMakeLists.txt, src/CMakeLists.txt    # ESP-IDF project and main component; src/idf_component.yml pins littlefs
 partitions/crowpanel7_advance.csv     # NVS 24k, PHY 4k, app 3 MB, LittleFS 4 MB, rest unallocated
 include/lv_conf.h                     # LVGL 9.6 config, shared by device and sim
 platformio.ini                        # envs: native, sim, crowpanel7_advance (default)
 
-src/main.cpp                          # setup(): audio_off() first, then app::start()
+src/main.cpp                          # app_main(): audio_off() first, then the UI task on core 1 runs app::start() and app::loop()
 src/platform/
   audio_off.h / audio_off.cpp         # silence step + aux-controller gate (pure gate in header)
   board.h                             # pins and timing for DIS02170A V1.4, with citations
@@ -123,7 +126,8 @@ src/platform/
   backlight.h / backlight.cpp         # full on via the gate; no other level exists (OD1)
   storage.h / storage.cpp             # LittleFS mount, bounded scratch write
   wifi_link.h / wifi_link.cpp         # STA connect, backoff, async scan, AP
-  setup_portal.h / setup_portal.cpp   # WebServer on the AP; embedded HTML page
+  i2c_bus.h / i2c_bus.cpp             # the shared I2C bus (aux controller, GT911)
+  setup_portal.h / setup_portal.cpp   # esp_http_server on the AP; embedded HTML page
   https_probe.h / https_probe.cpp     # one GET with the CA bundle
   sysinfo.h / sysinfo.cpp             # heap, PSRAM, MAC, reset reason
   console_io.h / console_io.cpp       # UART0 line reader and writer (the only serial code)
@@ -157,16 +161,16 @@ tools/check_tls.py                    # fails on setInsecure / one-argument http
 - The layering of `05-architecture.md` §4 is kept.
   - **Diagnostic logic** is permanent product code (clarification 2026-11-20), so its pure parts live in `lib/core/src/nvp/diag/`.
   - **Diagnostic screens** live in `lib/ui/src/diag/`.
-  - Only `src/platform` includes board, SDK or FreeRTOS headers. `src/app` uses only `src/platform`, `lib/core` and `lib/ui`. `src/main.cpp` is the Arduino entry point and calls only those two.
+  - Only `src/platform` includes board, SDK or FreeRTOS headers. `src/app` uses only `src/platform`, `lib/core` and `lib/ui`. `src/main.cpp` is the entry point (`app_main`) and calls only those two.
 - **The basic-board environment** `crowpanel7_basic` and its board/partition files are **removed**. The owner has no basic board. Git history keeps them, and a future basic profile is a new slice.
 
 ### Startup order (MODE-01, FR-001, FR-005, SC-006)
 
 1. `audio_off()`:
    1. GPIO 4/5/6 driven low.
-   2. `Wire.begin(15, 16)`.
+   2. I2C master bus on SDA 15, SCL 16 (`i2c::begin()`).
    3. Send 249 and 247 to 0x30, at most 20 tries × 50 ms. Result kept, including any byte the gate refused.
-2. `Serial.begin(115200)`, then the first report line `audio-off: acknowledged | failed (reason)`, followed by any refusal recorded in step 1.
+2. UART0 driver at 115200, then the first report line `audio-off: acknowledged | failed (reason)`, followed by any refusal recorded in step 1.
 3. Backlight byte 0 (full) through the gate.
 4. Display: `esp_lcd` RGB panel, LVGL, boot screen.
 5. Touch start-up sequence: bounded, at most 10 tries (about 2.5 s worst case, while the boot screen shows).

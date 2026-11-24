@@ -22,7 +22,7 @@ A subset of NET-02 and NET-04, so that Slice 4 extends it rather than replacing 
 |---|---|
 | `GET /` | the single setup page (inline HTML, CSS and JS, under 4 kB) |
 | `GET /api/scan` | `200` with `{"networks":[{"ssid":"…","rssi":-54,"secured":true}]}`. At most 20 entries, strongest first, duplicate SSIDs merged. Strings are JSON-escaped. |
-| `POST /api/setup` | form or JSON `ssid`, `password`. Answers `202 {"accepted":true}` at once, then tries for up to 20 s. Rejects an empty or over-32-byte SSID, or a password longer than 63 bytes, with `400`. |
+| `POST /api/setup` | form-encoded `ssid`, `password` (the page's own format; JSON bodies are not accepted in Slice 1, decided 2026-11-23). Answers `202 {"accepted":true}` at once, then tries for up to 20 s. Rejects an empty or over-32-byte SSID, or a password longer than 63 bytes, with `400`. |
 | `GET /api/status` | `200 {"state":"setup|trying|connected|failed","ssid":"…"}`. **Never contains a password** (NET-08). |
 | anything else | `404` |
 

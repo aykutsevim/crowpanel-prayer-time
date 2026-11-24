@@ -1,7 +1,7 @@
 # 0001: PlatformIO platform and Arduino core
 
-Date: 2026-11-20 (Slice 0). Status: accepted; revisit in Slice 1 if the stress test or the
-display stack requires it.
+Date: 2026-11-20 (Slice 0). Status: accepted; the framework part (Arduino-ESP32) is superseded by
+[0002](0002-display-stack.md) on 2026-11-24. The platform pin stays.
 
 ## Decision
 

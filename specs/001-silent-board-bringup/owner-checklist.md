@@ -32,8 +32,8 @@ Listening checks: a quiet room, your ear close to the board, speaker connector a
 | A1 | Power-on: was the device completely silent (no click, pop, hiss, chirp, tone or whine)? | yes | 2026-11-23 | Stage 1 firmware 0.1.0 (power-on (USB unplugged and plugged in again)). An earlier "silent" the same day was given while the factory firmware still ran and counts only for I7. |
 | A2 | Reset button: was it completely silent during the restart? | yes | 2026-11-23 | Stage 1 firmware 0.1.0 (reset button). An earlier "silent" the same day was given while the factory firmware still ran and counts only for I7. |
 | A3 | With the backlight on (it is always full): no whine from the board? | yes | 2026-11-23 | no whine with the backlight fully on |
-| A4 | Ten minutes of stress mode: silent throughout? | | | |
-| A5 | Wi-Fi setup from the phone, including connecting: silent throughout? | | | |
+| A4 | Ten minutes of stress mode: silent throughout? | yes | 2026-11-23 | silent during the L3 stress run (stress confirmed by the serial log); the second observation was without stress; L4 (ESP-IDF) stress run 2026-11-24: silent the whole time |
+| A5 | Wi-Fi setup from the phone, including connecting: silent throughout? | yes | 2026-11-23 | silent during both setups and connections ; ESP-IDF firmware 2026-11-24: all silent during forget, setup and connection |
 | A6 | Touching the screen and its buttons: no sound and no vibration? | yes | 2026-11-23 | no sound or vibration while touching the screen and buttons |
 
 ## B. Picture (Stage 2, B5 in Stage 3)
@@ -44,13 +44,13 @@ Listening checks: a quiet room, your ear close to the board, speaker connector a
 | B2 | Is the text the right way up, and is the USB-C connector on the side the arrow says? | yes | 2026-11-23 | USB-C on the left, as the arrow says |
 | B3 | Is the thin white border visible on **all four** edges, touching the edge of the glass? | yes | 2026-11-23 |  |
 | B4 | Idle for one minute: are the fine vertical lines steady (even grey from arm's length, no colour tint, no crawling, shifting, tearing or flicker)? | yes | 2026-11-23 | First look at 16 MHz: steady between the shifts reported under D1. With L1 (14 MHz): lines steady, no shift (owner, 2026-11-23). |
-| B5 | During ten minutes of stress mode: do the lines and border stay exactly as in B3 and B4? If not, note when it happened and paste the serial log lines from that moment. | | | |
+| B5 | During ten minutes of stress mode: do the lines and border stay exactly as in B3 and B4? Any flicker, shift, garbling or dirty edge is a "no". If not, note when it happened and paste the serial log lines from that moment. | **yes** | 2026-11-24 | Run 1 at L3: no (flicker on a rhythm, then stuck offset). Run 2 at L3a: owner saw a steady picture for 10 minutes, but the report proved stress mode had not started (`stress: off`, no previous run, no restart): idle-with-Wi-Fi result only. Run 3 at L3a: no (flicker and drift every 10 s). Isolation: writes flicker (needs L4, accepted), scans garble (fixed by L3b). Run 4 at L3b: no. Run 5 at L3c: no (garbled 20–45 s at a time). **Run 6 on ESP-IDF (L4, decision 0002): yes**, "image is good always"; log 605 s, 61 cycles, scan 61/0, write 61/0, https 21/0/0, no restart. |
 
 ## C. Touch (Stage 2)
 
 | # | Question | Answer | Date | Note |
 |---|---|---|---|---|
-| C1 | Does the marker follow your finger, and disappear (`no touch`) when you lift it? | yes | 2026-11-23 |  |
+| C1 | Does the marker follow your finger, and disappear (`no touch`) when you lift it? | yes | 2026-11-23 | Re-checked on the ESP-IDF firmware 2026-11-24: touch works. |
 | C2 | After touching the centre of each corner target: are **all four** targets green? | yes | 2026-11-23 | All four green after retries (first touches red). Report: TL passed (-4,-9) TR passed (+9,-7) BL passed (-10,+2) BR passed (+5,+10): all errors point outward, two at the 10 px limit; touch scale to be checked (GT911 resolution registers 0x8146..0x8149). |
 
 ## D. Backlight (Stage 2)
@@ -63,16 +63,16 @@ Listening checks: a quiet room, your ear close to the board, speaker connector a
 
 | # | Question | Answer | Date | Note |
 |---|---|---|---|---|
-| E1 | From the phone, could you join the hotspot shown on screen, open the page, choose your network and connect? Under three minutes? | | | |
-| E2 | After pressing reset, did the device reconnect without setup? | | | |
-| E3 | Did "Forget Wi-Fi" ask for confirmation, and after `Yes` show `Not set up`? | | | |
+| E1 | From the phone, could you join the hotspot shown on screen, open the page, choose your network and connect? Under three minutes? | yes | 2026-11-23 | Joined `NamazVakti-83EC`, submitted the home network on the page, device connected. The hotspot was first not visible because it had not been opened (confirmation unanswered); opened from serial `wifi setup`. Screen message "Waiting for a phone" unclear: reworded. Duration not reported. Second setup (after Forget, L3 firmware): connected in about 3 s. Re-run on the ESP-IDF firmware 2026-11-24 (new setup page server and form decoding): forgot, opened the hotspot, chose the network and entered the password on the phone; connected in under 10 seconds (log: `trying` at 1 199 s, `connected ...; details stored` at 1 204 s, hotspot closed after the grace period at 1 209 s). |
+| E2 | After pressing reset, did the device reconnect without setup? | yes (log) | 2026-11-24 | Proven by log, not yet watched by the owner: after the reset pulse that follows each flash, the ESP-IDF firmware logged `wifi: joining <home network>` at 352 ms and `wifi: connected` at 5.6 s from the stored details, with no setup. |
+| E3 | Did "Forget Wi-Fi" ask for confirmation, and after `Yes` show `Not set up`? | yes | 2026-11-23 | Forgot the network after confirmation, showed `Not set up`, then set up again and reconnected (L3 firmware). Re-run on the ESP-IDF firmware 2026-11-24: forgot after confirmation (log `wifi: stored details erased`). |
 
 ## F. Report (Stages 1 and 3)
 
 | # | Question | Answer | Date | Note |
 |---|---|---|---|---|
 | F1 | Does the report show `DIS02170A V1.4` and `audio-off: acknowledged first`? (Paste the report block below.) | yes (log line) | 2026-11-23 | Captured by the implementer over COM4 after flashing Stage 1; block pasted below. Silence acknowledged on attempt 4 (about 150 ms after start-up). |
-| F2 | Looking at the pasted report and log: does any Wi-Fi or hotspot password appear anywhere? (expected: no) | | | |
+| F2 | Looking at the pasted report and log: does any Wi-Fi or hotspot password appear anywhere? (expected: no) | no (passes) | 2026-11-24 | Owner read the report and the Wi-Fi setup log (ESP-IDF firmware: forget, hotspot, setup, connection): no Wi-Fi or hotspot password. Machine search of the 10-minute stress log and the setup log: the only lines containing "pass" are self-test `passed` results, and there is no 8-digit run. |
 
 ## Pasted evidence
 

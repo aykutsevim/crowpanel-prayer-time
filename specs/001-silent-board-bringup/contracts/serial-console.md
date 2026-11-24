@@ -13,6 +13,10 @@ UART0 through the CH340K, 115200 8N1. Each command is one line ending in `\n`, w
 | `wifi setup` | starts the hotspot (no confirmation on serial) | silence not acknowledged |
 | `wifi cancel` | closes the hotspot and keeps the stored details | — |
 | `wifi forget` | erases the stored details and disconnects | — |
+| `test write` | one 4 kB scratch write on the network core, logged with its duration (diagnostic, added 2026-11-23) | — |
+| `test scan` | one Wi-Fi scan, logged (diagnostic, added 2026-11-23) | silence not acknowledged |
+| `test https` | one HTTPS request, logged with status, size and duration (diagnostic, added 2026-11-23) | silence not acknowledged |
+| `test mix` | one scan with a 4 kB write at its start, as one stress cycle (diagnostic, added 2026-11-23) | silence not acknowledged |
 | `diag` | in this slice prints `already in diagnostic mode` and changes nothing; from Slice 3 on it leaves the product screen for the diagnostic screen (FR-007a) | — |
 
 Unknown input prints `unknown command, type help` and changes nothing. There is deliberately no backlight command (OD1).
@@ -41,12 +45,14 @@ heap psram: 7340032 free
 stress: off | on 312 s cycles 31 scan 31/0 write 31/0 https 10/0/0 last-error none
 boot-to-diag: 2840 ms
 uptime: 42 s
+reset: power-on
 === END ===
 ```
 
 - `audio-off` covers the whole silence sequence (249, then 247) and names no individual part (FR-026, SIL-05).
 - `memory` gives the flash chip size and the PSRAM size as the chip reports them, so the report backs up owner answer I2.
 - `boot-to-diag` is the time from reset to the diagnostic screen (SC-006); it reads `n/a (no display)` when there is no display, as in Stage 1.
+- `reset` is the chip's last reset reason; after a crash it adds `, core dump saved (N B)` when the crash record is in the `coredump` partition.
 - The hotspot line gives the name and address, never the hotspot password (FR-024).
 - The report contains no password of any kind. This is tested by `test_report_never_contains_secret`, which feeds a password-like SSID and checks the output.
 - Each stress event is also logged with a millisecond timestamp, for matching against the owner's observations:

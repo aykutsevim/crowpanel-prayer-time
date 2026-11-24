@@ -66,7 +66,7 @@ Test fixture used throughout (also in the reference renders): yesterday Yatsı 1
 - **UI-02** Screen content never depends on the network being reachable at that moment; it is rendered from the engine output and cached records.
 - **UI-03** Rendering work is bounded: per second only the clock, countdown and progress fill change; per minute the now marker and column notes; on vakit change, column states, leaders, hero texts; on day change, everything.
 - **UI-04** The UI thread never performs network or flash I/O.
-- **UI-05** Backlight level comes from settings (§8). Changes take effect within one second.
+- **UI-05** Backlight level comes from settings (§8). Changes take effect within one second. *Amended by owner decision OD1 (2026-11-20):* there is no backlight setting; the backlight is always fully on (see SET-04). The requirement still applies to the other display settings in §8.
 - **UI-06** Touch behaviour is limited to `02-ui-spec.md` §8.
 
 ## 5. Wi-Fi and provisioning
@@ -121,9 +121,6 @@ Stored in non-volatile storage; applied without restart unless noted.
 | `kerahat_enabled` | show kerahat layer | true | bool | settings page |
 | `kerahat_sunrise_min`, `kerahat_noon_min`, `kerahat_sunset_min` | durations | 45, 45, 45 | 0…90 | settings page |
 | `soon_threshold_min` | countdown turns to alert colour | 15 | 0, 5, 10, 15, 30 | settings page |
-| `brightness_day` | backlight percent | 100 | 10…100 | settings page |
-| `night_dim_enabled` | dim between Yatsı + 30 min and İmsak | false | bool | settings page |
-| `brightness_night` | backlight percent while dimmed | 35 | 5…100 | settings page |
 | `diyanet_user`, `diyanet_pass` | official API credentials (optional) | empty | text | settings page (advanced) |
 | `ap_password` | access-point password | generated | 8 digits | not editable |
 | `settings_pin` | PIN for the settings page | generated | 6 digits | not editable |
@@ -131,14 +128,14 @@ Stored in non-volatile storage; applied without restart unless noted.
 - **SET-01** Settings page (station mode, Slice 8) at `http://<device-ip>/` and `http://namazvakti.local/`, Turkish, same visual language as the portal. Sections: `Konum`, `Görünüm`, `Veri` (source, last update, stored range, button `Şimdi güncelle`), `Gelişmiş`, `Sıfırla`.
 - **SET-02** Every state-changing request needs the settings PIN shown in the status overlay. Five wrong attempts lock the page for five minutes. Read-only status needs no PIN.
 - **SET-03** `Fabrika ayarlarına dön` erases credentials, settings, PIN, access-point password and cached times, then restarts into SETUP. It asks for confirmation.
-- **SET-04** If backlight dimming is unavailable on the hardware (see `05-architecture.md` §2), the brightness settings are hidden rather than shown as broken.
+- **SET-04** *Dropped (owner decision OD1, 2026-11-20).* There are no brightness or night-dimming settings, and the keys `brightness_day`, `night_dim_enabled` and `brightness_night` were removed from the table above. On the target board the backlight is dimmed only through the auxiliary controller, whose dimming frequency is undocumented, so SIL-04 cannot be confirmed for any dimmed level; the backlight is therefore always fully on (`specs/001-silent-board-bringup/research.md` R6, `05-architecture.md` §2). The id is kept so that it is not reused.
 
 ## 9. Silence
 
 - **SIL-01** The device must not emit sound. There is no audio feature, setting, icon or wording that suggests one.
 - **SIL-02** The first action after reset, before any other peripheral, is to put the audio amplifier into shutdown, drive the I²S lines to a fixed level and, on boards that have one, hold the buzzer inactive. The I²S peripheral is never initialised.
 - **SIL-03** No code path generates tones on any pin (no buzzer, no PWM in the audible band on any output).
-- **SIL-04** Backlight PWM, if used, runs at 20 kHz or above. If the backlight driver produces audible noise at any duty cycle, PWM dimming is disabled and the backlight is held fully on.
+- **SIL-04** Backlight PWM, if used, runs at 20 kHz or above. If the backlight driver produces audible noise at any duty cycle, PWM dimming is disabled and the backlight is held fully on. On the target board (DIS02170A V1.4) the ESP32 has no backlight pin and configures no PWM; the backlight is always fully on (OD1, see SET-04).
 - **SIL-05** The build fails if source code or dependencies reference audio APIs (see `05-architecture.md` §9 for the check).
 - **SIL-06** Touch gives no audible or haptic feedback.
 
@@ -167,5 +164,5 @@ Stored in non-volatile storage; applied without restart unless noted.
 | First real times after setup, on a normal home connection | ≤ 20 s after Wi-Fi association |
 | Offline autonomy after a full refresh | until the end of the stored range, at least 30 days, normally to the end of the calendar year |
 | Outbound requests in steady state | ≤ 10 per day on average |
-| Firmware image on the basic board | ≤ 2.9 MB |
+| Firmware image (kept as a discipline on the 16 MB target board) | ≤ 2.9 MB |
 | Clock error | ≤ 1 s after SNTP sync, drift corrected at each resync |

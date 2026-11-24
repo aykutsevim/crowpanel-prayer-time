@@ -218,7 +218,7 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 ### Tests for User Story 3 (write first, must fail)
 
-- [ ] T039 [P] [US3] Write `test/test_diag/test_stress.cpp` for `StressSchedule::next(now_ms, connected, ap_up)` and `StressCounters` (data-model.md):
+- [X] T039 [P] [US3] Write `test/test_diag/test_stress.cpp` for `StressSchedule::next(now_ms, connected, ap_up)` and `StressCounters` (data-model.md):
   - scan and write every 10 s
   - HTTPS due only when 30 s or more have passed since the last attempt
   - a skip is counted only when HTTPS was due and the device was not connected
@@ -227,9 +227,9 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] Implement `lib/core/src/nvp/diag/stress.h/.cpp` until T039 passes.
-- [ ] T041 [P] [US3] Add `storage_scratch_write()` to `src/platform/storage.cpp`. It rewrites `/scratch.bin` in place with 4096 bytes of a counter pattern, so the file never grows (FR-013).
-- [ ] T042 [P] [US3] Implement `src/platform/https_probe.h/.cpp` (research R10):
+- [X] T040 [US3] Implement `lib/core/src/nvp/diag/stress.h/.cpp` until T039 passes.
+- [X] T041 [P] [US3] Add `storage_scratch_write()` to `src/platform/storage.cpp`. It rewrites `/scratch.bin` in place with 4096 bytes of a counter pattern, so the file never grows (FR-013).
+- [X] T042 [P] [US3] Implement `src/platform/https_probe.h/.cpp` (research R10):
   - `NetworkClientSecure` with `useBuiltinCACertBundle()`
   - `HTTPClient::begin(client, "https://ezanvakti.imsakiyem.com/api/v2/locations/countries/2")`
   - header `User-Agent: NamazVaktiPanel/<kFirmwareVersion>`
@@ -238,19 +238,20 @@ description: "Task list for Slice 1: Silent Board Bring-up"
   - the result carries status, bytes, duration and a short reason
 
   `tools/check_tls.py` must pass.
-- [ ] T043 [P] [US3] Add the async scan to `src/platform/wifi_link.h/.cpp`: `scan_start()` and `scan_poll()` using `WiFi.scanNetworks(true)`, `scanComplete()` and `scanDelete()`. Zero networks counts as success.
-- [ ] T044 [US3] Implement the stress task in `src/app/bringup_app.cpp`:
+- [X] T043 [P] [US3] Add the async scan to `src/platform/wifi_link.h/.cpp`: `scan_start()` and `scan_poll()` using `WiFi.scanNetworks(true)`, `scanComplete()` and `scanDelete()`. Zero networks counts as success.
+- [X] T044 [US3] Implement the stress task in `src/app/bringup_app.cpp`:
   - a worker on core 0, created through `src/platform/tasks.h/.cpp` (new: `start_worker(core, fn)` and a `Lock` type; FreeRTOS stays in `src/platform`, constitution VI), driven by `StressSchedule`
   - log lines `[  ms] stress: …` per contracts/serial-console.md
   - counters copied to the view model under the platform `Lock`
   - start and stop from `stress on|off` and the on-screen button
   - refuses via `can_use_radio_and_load()` (FR-001a)
   - stops when the diagnostic mode is left (FR-007a)
-- [ ] T045 [US3] Show the stress status and counters in `lib/ui/src/diag/diag_screen.cpp`. Re-render the `diag_stress` snapshot and review it.
-- [ ] T046 [US3] **Stage 3 owner check (stress)**, after US7 is done so that HTTPS runs:
+- [X] T045 [US3] Show the stress status and counters in `lib/ui/src/diag/diag_screen.cpp`. Re-render the `diag_stress` snapshot and review it.
+- [X] T046 [US3] **Stage 3 owner check (stress)**, after US7 is done so that HTTPS runs:
   - The owner runs stress for 10 minutes and answers B5 and A4, pasting the final report.
   - Record a row in the Stack decision log.
   - If B5 is "no", follow research R8: apply L1, then L2, and so on, one change per commit, repeating B4 and B5 each time, and logging every attempt.
+  - Done 2026-11-24: B5 "no" on L0–L3c (Arduino), **yes on L4** (plain ESP-IDF, decision 0002); A4 silent; every attempt is in the Stack decision log.
 
 **Checkpoint**: the stack decision is backed by evidence.
 
@@ -306,10 +307,10 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 - Restart and compare the report with the board label.
 - Unplug the panel cable: the report still prints in full.
 
-- [ ] T056 [US6] Fill every `ReportInput` field from live state in `src/app/bringup_app.cpp`: firmware, board, silence, all self-tests, Wi-Fi line, backlight, corners, heap, PSRAM, stress, uptime. Print it at the end of start-up and on `report`.
+- [X] T056 [US6] Fill every `ReportInput` field from live state in `src/app/bringup_app.cpp`: firmware, board, silence, all self-tests, Wi-Fi line, backlight, corners, heap, PSRAM, stress, uptime. Print it at the end of start-up and on `report`. (Verified 2026-11-24 on the ESP-IDF build: start-up and `report` both print every line; heap, Wi-Fi, corners, stress and uptime change between reports.)
 - [X] T057 [US6] Show the report lines on the diagnostic screen's info panel, with failed results in the alert colour (FR-027). Re-render the `diag_failures` snapshot and review it.
-- [ ] T058 [US6] Make every self-test independent. A throwing or timing-out test is caught and recorded as Failed with a reason, and the next test still runs. Display failure must not stop the serial report (spec edge case).
-- [ ] T059 [US6] Owner check F1 (Stage 1), and F2 after Stage 3. Record the pasted reports.
+- [X] T058 [US6] Make every self-test independent. A throwing or timing-out test is caught and recorded as Failed with a reason, and the next test still runs. Display failure must not stop the serial report (spec edge case). (2026-11-24: each step in `app::start()` records its own result and the next runs regardless; a display failure skips only the screens; every wait is bounded (silence 20 attempts, touch 10, I2C 50 ms); C++ exceptions are off in the ESP-IDF build, so nothing throws.)
+- [X] T059 [US6] Owner check F1 (Stage 1), and F2 after Stage 3. Record the pasted reports.
 
 ---
 
@@ -321,10 +322,10 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 ### Tests for User Story 7 (write first, must fail)
 
-- [ ] T060 [P] [US7] Write `test/test_diag/test_json.cpp`: escapes `"`, `\`, control characters and non-ASCII bytes (passed through as UTF-8), a 32-byte SSID, and an empty string.
-- [ ] T061 [P] [US7] Write `test/test_diag/test_backoff.cpp`: 5 s, 10 s, 20 s … capped at 300 s; reset on success (NET-01).
-- [ ] T062 [P] [US7] Write `test/test_diag/test_ap_password.cpp`: always 8 decimal digits, including leading zeros, from injected random words.
-- [ ] T063 [P] [US7] Write `test/test_diag/test_wifi_states.cpp` for the transition table in data-model.md WifiState:
+- [X] T060 [P] [US7] Write `test/test_diag/test_json.cpp`: escapes `"`, `\`, control characters and non-ASCII bytes (passed through as UTF-8), a 32-byte SSID, and an empty string.
+- [X] T061 [P] [US7] Write `test/test_diag/test_backoff.cpp`: 5 s, 10 s, 20 s … capped at 300 s; reset on success (NET-01).
+- [X] T062 [P] [US7] Write `test/test_diag/test_ap_password.cpp`: always 8 decimal digits, including leading zeros, from injected random words.
+- [X] T063 [P] [US7] Write `test/test_diag/test_wifi_states.cpp` for the transition table in data-model.md WifiState:
   - forget erases and goes to Idle
   - cancel returns to the previous state and keeps the details
   - a failed try discards the submitted details and stays in SetupAP
@@ -333,42 +334,42 @@ description: "Task list for Slice 1: Silent Board Bring-up"
 
 ### Implementation for User Story 7
 
-- [ ] T064 [P] [US7] Implement `lib/core/src/nvp/diag/json.h/.cpp`, `backoff.h/.cpp`, `ap_password.h/.cpp` and the pure transition table in `lib/core/src/nvp/diag/wifi_states.h/.cpp` until T060–T063 pass.
-- [ ] T065 [US7] Complete `src/platform/wifi_link.h/.cpp`:
+- [X] T064 [P] [US7] Implement `lib/core/src/nvp/diag/json.h/.cpp`, `backoff.h/.cpp`, `ap_password.h/.cpp` and the pure transition table in `lib/core/src/nvp/diag/wifi_states.h/.cpp` until T060–T063 pass.
+- [X] T065 [US7] Complete `src/platform/wifi_link.h/.cpp` (implemented as thin radio and NVS wrappers; the join, backoff, try and grace logic runs in `src/app/net_worker.cpp` on core 0, driven by the pure `wifi_states`, 2026-11-23):
   - STA join from NVS `wifi/ssid` and `wifi/pass` with backoff
   - AP+STA hotspot `NamazVakti-XXXX`, WPA2, at most 2 clients, 192.168.4.1
   - `ap/pass` generated with `esp_random()` on first use (NET-02)
   - a try of up to 20 s; store on success and close the AP after a 5 s grace period; discard on failure (MODE-04, FR-022)
   - forget, cancel
   - the password is never logged (FR-024)
-- [ ] T066 [US7] Implement `src/platform/setup_portal.h/.cpp` per `contracts/setup-portal.md`:
+- [X] T066 [US7] Implement `src/platform/setup_portal.h/.cpp` per `contracts/setup-portal.md`:
   - `WebServer` on port 80, running only while the AP is up
   - `GET /`: inline page under 4 kB with network list, SSID field, password field and status polling
   - `GET /api/scan`: at most 20 entries, deduplicated, JSON-escaped
   - `POST /api/setup`: 202 or 400
   - `GET /api/status`: never a password
   - 404 otherwise
-- [ ] T067 [US7] Implement `lib/ui/src/diag/settings_screen.h/.cpp` per `contracts/diag-screens.md`:
+- [X] T067 [US7] Implement `lib/ui/src/diag/settings_screen.h/.cpp` per `contracts/diag-screens.md`:
   - Wi-Fi state line, `Start Wi-Fi setup` and `Forget Wi-Fi` behind `Yes`/`No` confirmations that close after 15 s (FR-019a)
   - `Cancel setup`, which acts at once
   - the hotspot name, password and address shown while the hotspot is open
   - `Back`
   - the `Settings` button on the diagnostic screen opens it
-- [ ] T068 [US7] Render the `settings_none`, `settings_confirm` and `settings_hotspot` snapshots and review them against `contracts/diag-screens.md`.
-- [ ] T069 [US7] Wire Wi-Fi into `src/app/bringup_app.cpp`:
+- [X] T068 [US7] Render the `settings_none`, `settings_confirm` and `settings_hotspot` snapshots and review them against `contracts/diag-screens.md`.
+- [X] T069 [US7] Wire Wi-Fi into `src/app/bringup_app.cpp`:
   - serial `wifi setup|cancel|forget`
   - join on boot in the background, only if `can_use_radio_and_load()` (FR-001a, FR-023)
   - stress pauses while the AP is up
   - Wi-Fi state shown in the view model and the report
   - while the AP is up, the serial Wi-Fi line reads `hotspot NamazVakti-XXXX at 192.168.4.1`, never the password (FR-024, spec edge case)
-- [ ] T070 [US7] Check with a test in `test/test_diag/test_selftest_report.cpp`, extended, and by inspecting the `/api/status` handler code, that no response or log path can contain `wifi/pass` or `ap/pass` (FR-024, NET-08).
-- [ ] T071 [US7] **Stage 3 owner check (Wi-Fi)**: E1, E2, E3 and A5. Record the answers. Then run T046.
+- [X] T070 [US7] Check with a test in `test/test_diag/test_selftest_report.cpp`, extended, and by inspecting the `/api/status` handler code, that no response or log path can contain `wifi/pass` or `ap/pass` (FR-024, NET-08).
+- [X] T071 [US7] **Stage 3 owner check (Wi-Fi)**: E1, E2, E3 and A5. Record the answers. Then run T046.
 
 ---
 
 ## Phase 10: Polish and cross-cutting
 
-- [ ] T072 [P] Update `docs/specification/05-architecture.md` (FR-033):
+- [X] T072 [P] Update `docs/specification/05-architecture.md` (FR-033):
   - §1.2 with the verified V1.4 facts and the auxiliary-controller command table (research R2–R6), dated 2026-11-20
   - §1.1 marked as the non-target board
   - §2 risks updated with the backlight decision and silence through the auxiliary controller
@@ -377,16 +378,24 @@ description: "Task list for Slice 1: Silent Board Bring-up"
   - §5 with the 16 MB partitions
   - §10 with env names `crowpanel7_advance` and `sim`
   - ⚠ items verified so far marked with the date
-- [ ] T073 [P] Update the rest of the project documents for the owner decisions (FR-033):
+- [X] T073 [P] Update the rest of the project documents for the owner decisions (FR-033):
   - `docs/specification/06-roadmap.md`: Slice 1 scope gains Wi-Fi setup and permanent diagnostics; Slice 4 builds on the stored keys; Slice 8 has no brightness or night dimming
   - `docs/specification/03-functional-spec.md`: SET-04 dropped, with a note
   - `docs/specification/01-product-brief.md`: open questions 1 and 4 answered
   - `docs/development/prompts/slice-03-main-screen.md`: the hidden diagnostic gesture per FR-007a, proposal two fingers held for 5 s, not colliding with `02-ui-spec.md` §8
   - `docs/development/prompts/slice-04-wifi-setup.md`: reuse NVS `wifi/*`, `ap/pass` and the portal paths
   - `docs/development/prompts/slice-08-settings-page.md`: no brightness settings
-- [ ] T074 [P] Update `README.md` with the development commands (`python tools/check.py`, `pio run -e crowpanel7_advance -t upload`, `pio device monitor -b 115200`, `pio run -e sim -t exec`), the DIP switch recommendation, and the serial command list.
-- [ ] T075 Record the final stack decision (FR-031) in `specs/001-silent-board-bringup/research.md` and copy a summary into `docs/decisions/0002-display-stack.md`. Confirm that every row of `specs/001-silent-board-bringup/owner-checklist.md` is answered and dated.
-- [ ] T076 Run `python tools/check.py`: all steps pass, and the size and diagnostic-mode size are reported. Confirm by search that `src/app/` and `lib/` include no `Arduino.h`, `esp_*`, `freertos/*` or `driver/*` header (constitution VI). Then run `/speckit-converge`.
+- [X] T074 [P] Update `README.md` with the development commands (`python tools/check.py`, `pio run -e crowpanel7_advance -t upload`, `pio device monitor -b 115200`, `pio run -e sim -t exec`), the DIP switch recommendation, and the serial command list.
+- [X] T075 Record the final stack decision (FR-031) in `specs/001-silent-board-bringup/research.md` and copy a summary into `docs/decisions/0002-display-stack.md`. Confirm that every row of `specs/001-silent-board-bringup/owner-checklist.md` is answered and dated.
+- [X] T076 Run `python tools/check.py`: all steps pass, and the size and diagnostic-mode size are reported. Confirm by search that `src/app/` and `lib/` include no `Arduino.h`, `esp_*`, `freertos/*` or `driver/*` header (constitution VI). Then run `/speckit-converge`.
+
+### Ladder step L4: move to plain ESP-IDF (added 2026-11-23/24, owner decision; research R8, decision 0002)
+
+- [X] T077 Spike `spikes/l4-idf/`: plain ESP-IDF 5.5.5 with the four build options, silence first, the line pattern, scan and write together every 10 s, HTTPS every 30 s. Owner: steady (2026-11-24).
+- [X] T078 Port `src/platform` and `src/main.cpp` to ESP-IDF (`i2c_bus`, UART console, `nvs`, `esp_littlefs`, `esp_wifi`, `esp_http_server`, `esp_http_client`, `app_main` with the UI task on core 1); `platformio.ini`, board JSON, `CMakeLists.txt`, `src/idf_component.yml`, `sdkconfig.defaults`, `tools/pio_lv_conf.py`.
+- [X] T079 [P] `nvp::diag::form_value` in `lib/core` for the setup form, tests first (`test/test_diag/test_form.cpp`).
+- [X] T080 [P] Tools: `tools/check_elf_silence.py` on every device build (SIL-05), `tools/check_tls.py` rules for `esp_http_client` and `sdkconfig*`, `tools/size_by_module.py` and `tools/pio_size_budget.py` for ESP-IDF names, `tools/test_repository.py` checks for the pinned ESP-IDF env and managed components.
+- [X] T081 Owner checks on the ESP-IDF firmware: B1–B4, C1, B5 (stress, yes), A4, E1, E3, A5 (2026-11-24); E2 by log.
 
 ---
 

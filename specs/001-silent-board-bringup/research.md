@@ -168,6 +168,8 @@ GPIO3, 45 and 46 are strapping pins used as LCD data. They are only driven by th
 
 ## R7. Display stack
 
+> **Update 2026-11-24:** the framework is now plain ESP-IDF 5.5.5 ([decision 0002](../../docs/decisions/0002-display-stack.md)). The `esp_lcd` and LVGL findings below still hold; mentions of Arduino entry points (`setup()`, `loop()`, `millis()`) now read `app_main()`, the UI task and `esp_timer_get_time()`.
+
 **Decision**: Espressif's own `esp_lcd` RGB panel driver, called directly from the Arduino build, with LVGL 9.6.0 on top.
 
 **Rationale**:
@@ -228,10 +230,17 @@ FAQ adds two points:
 | Step | Change | Fixes | Cost |
 |---|---|---|---|
 | L1 | PCLK 14 MHz, then 12 MHz | bandwidth starvation (FAQ, IDFRGB) | refresh 34 Hz / 29 Hz |
-| L2 | Around each storage write, lower PCLK with `esp_lcd_rgb_panel_set_pclk` (for example to 8 MHz) and restore it afterwards | drift during writes (FAQ) | a possible single blank frame during writes |
+| L2 | Around each storage write, lower PCLK with `esp_lcd_rgb_panel_set_pclk` (for example to 8 MHz) and restore it afterwards | drift during writes (FAQ) | a possible single blank frame during writes  **Not applicable on this panel** (2026-11-23): the SC7277 rejects clocks that low (datasheet: DCLK 23..27 MHz; 12 MHz already gave the panel's test pattern). |
 | L3 | Bounce buffer of 10 × 800 px (2 × 16 000 B internal DMA RAM), as in the vendor IDF example | contention during Wi-Fi traffic | internal RAM, ISR CPU. Without XIP it makes flash writes worse, so it is used only together with L2. |
 | L4 | Switch the build to `framework = arduino, espidf` with `CONFIG_SPIRAM_XIP_FROM_PSRAM=y`, `CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y` and bounce buffers. This is Espressif's documented set for "Wi-Fi, BLE and continuous flash writes" (FAQ). | flash-write stalls | longer builds, a second framework package to pin, PSRAM used for code |
 | L5 | LovyanGFX 1.2.25 on a pinned Arduino 3.3.8, the vendor's exact Arduino combination | last resort | undoes the Slice 0 platform decision |
+
+**L4 findings (2026-11-23)**:
+
+- The vendor's working IDF example (`EX/IDF_Code/Lesson03-LVGL_Control_LED/sdkconfig`, IDF 5.5.4) sets `CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y` and `CONFIG_SPIRAM_RODATA=y`, with `SPIRAM_XIP_FROM_PSRAM`, `LCD_RGB_RESTART_IN_VSYNC` and `LCD_RGB_ISR_IRAM_SAFE` off. It has no Wi-Fi. Our precompiled Arduino libraries use a 32-byte data cache line.
+- `espressif32@8.0.0` supports `framework = arduino, espidf`: `platform.py` then selects `framework-espidf ~4.50505.0` (IDF 5.5.5; registry version 4.50505.0, published 2026-09-29), and `CMakeLists.txt` of the Arduino core requires `CONFIG_FREERTOS_HZ=1000`.
+- **Blocker as-is**: in that mode the Arduino core is an IDF component whose `idf_component.yml` pulls, for esp32s3, `espressif/esp-sr` (speech and audio, `^2.4.5`), `esp_insights`, `esp_rainmaker`, `esp_diagnostics` (cloud telemetry), Zigbee and modem components, several by version range. That conflicts with Principle I (no audio library in the firmware), SEC-05 (no telemetry) and Principle V (exact pins). L4 would need the Arduino core vendored with a trimmed manifest.
+- Owner decision 2026-11-23: try two Arduino-only measures first, **L3a** (`flags.bb_invalidate_cache`) and **L3b** (20-line bounce buffer, LVGL draw buffer halved); L4 only if both fail.
 
 **Rejected**:
 
@@ -250,34 +259,27 @@ FAQ adds two points:
 | Item | Pin | Source and date |
 |---|---|---|
 | Platform | `espressif32@8.0.0` (2026-10-19) | Slice 0 decision 0001 |
-| Arduino core package | `platformio/framework-arduinoespressif32@4.30312.261116` = Arduino-ESP32 3.3.12. The platform only requires `~4.30312.0`, and several builds exist, so it is pinned via `platform_packages`. | installed package, PlatformIO registry |
-| S3 precompiled libraries | `platformio/framework-arduinoespressif32-esp32s3-libs@3.3.12` | installed package |
+| Framework (from 2026-11-24) | `platformio/framework-espidf@4.50505.0` = ESP-IDF 5.5.5, pinned via `platform_packages` | platform.py of espressif32 8.0.0 selects `~4.50505.0`; registry; decision 0002 |
+| LittleFS component | `joltwallet/littlefs ==1.22.3` (`src/idf_component.yml`) | the version listed in Arduino 3.3.12's `versions.txt`, so the existing partition stays readable |
 | LVGL | `lvgl/lvgl@9.6.0` (2026-09-16), the latest release and the final v9 | github.com/lvgl/lvgl/releases/tag/v9.6.0 |
 | Host test platform | `native@1.2.1` | Slice 0 |
 
 No other third-party libraries are used.
 
-Built-ins from the core (3.3.12):
-
-- `Wire`
-- `WiFi`: `scanNetworks(async=true)` with `scanComplete` / `scanDelete`; `softAP(ssid, pass, channel, hidden, max_connection=2)`
-- `WebServer`
-- `NetworkClientSecure` with `useBuiltinCACertBundle()`
-- `HTTPClient`
-- `Preferences` (NVS)
-- `LittleFS`
-- `esp_random()`
+Until 2026-11-24 the firmware used Arduino-ESP32 3.3.12 (`framework-arduinoespressif32@4.30312.261116` with `framework-arduinoespressif32-esp32s3-libs@3.3.12`) and its built-ins (Wire, WiFi, WebServer, NetworkClientSecure, HTTPClient, Preferences, LittleFS). The ESP-IDF replacements, with the same NVS namespaces and keys and the same LittleFS partition, are listed in decision 0002. One thing the Arduino web server did that ESP-IDF's does not, decoding form bodies, is now `nvp::diag::form_value` in `lib/core`, tested on the host.
 
 LVGL 9.6 notes that apply:
 
-- configure with `LV_CONF_INCLUDE_SIMPLE` and `include/lv_conf.h`
+- configure with `include/lv_conf.h`: `LV_CONF_INCLUDE_SIMPLE` on the host, `LV_CONF_PATH` on the device (set by `tools/pio_lv_conf.py`, because ESP-IDF builds pass no `-I` flags to libraries)
 - `LV_COLOR_FORMAT_DEFAULT = LV_COLOR_FORMAT_RGB565` instead of `LV_COLOR_DEPTH`
 - `LV_MEM_SIZE` is given in bytes
 - include only `lvgl.h`
 - always pass the display explicitly to `lv_display_*`
-- tick via `lv_tick_set_cb(millis-wrapper)`
+- tick via `lv_tick_set_cb` with `esp_timer_get_time() / 1000`
 
 ## R10. Encrypted request (stress mode)
+
+> **Update 2026-11-24:** since decision 0002 the request uses `esp_http_client` with `crt_bundle_attach = esp_crt_bundle_attach` (`src/platform/https_probe.cpp`). The Arduino `HTTPClient`/`NetworkClientSecure` findings below are kept as history; `tools/check_tls.py` covers both.
 
 - **Decision**: `GET https://ezanvakti.imsakiyem.com/api/v2/locations/countries/2`.
   - The host is in the allowed list (`04-data-sources.md` §11, SEC-02).
@@ -290,6 +292,8 @@ LVGL 9.6 notes that apply:
 - A success is any HTTP status 200 with a body of 4 kB or less. Every other outcome is an error with a short reason (TLS failure, timeout, HTTP status).
 
 ## R11. Wi-Fi setup for the test (owner decision 2026-11-20)
+
+> **Update 2026-11-24:** since decision 0002 the radio uses `esp_wifi`/`esp_netif` (AP 192.168.4.1/24 from the ESP-IDF default AP interface), the page is served by `esp_http_server`, form bodies are decoded by `nvp::diag::form_value`, and NVS is read with `nvs_get_str` from the same namespaces and keys the Arduino `Preferences` code wrote. Behaviour, paths and keys are unchanged; owner checks E1, E3 and A5 were repeated on the new code (2026-11-24).
 
 - **Access point**: name `NamazVakti-XXXX` (last four hex digits of the station MAC, upper case), WPA2-PSK, at most two clients, address 192.168.4.1 (NET-02).
   - **Password**: eight decimal digits from `esp_random()`, generated on first use and stored in NVS (namespace `ap`, key `pass`). It is kept until factory reset and shown only on the device screen (FR-020, FR-024).
@@ -338,4 +342,19 @@ LVGL 9.6 notes that apply:
 |---|---|---|---|---|
 | 2026-11-23 | L0: esp_lcd, 16 MHz, no bounce buffer, PARTIAL 800×40 internal (firmware 0.1.0, Stage 2) | **no** | not run | Owner: B4 yes (one-minute look), but D1 reports a flicker about every 3–4 s and the picture sometimes moving left. Cause found in the firmware, not the stack: the view refresh read the flash chip ID (`esp_flash_get_physical_size`) every 100 ms, a flash command on the bus PSRAM shares while the panel scans out of PSRAM. |
 | 2026-11-23 | L0 unchanged; flash ID read once at boot, before the display starts (`sysinfo::init`) | **no** | not run | Owner: the blackout is gone and the backlight is steady, but the picture still moves left and returns by itself (driver restart at the next frame); lines steady in between (B4). No flash access at run time any more, so this is the stack's own behaviour at idle. |
-| 2026-11-23 | **L1**: PCLK 14 MHz (34 Hz), otherwise as above | **yes** | pending (Stage 3, B5) | Owner, two to three minutes after start: "fully stable", fine lines steady (D1, B4). Current configuration. |
+| 2026-11-23 | **L1**: PCLK 14 MHz (34 Hz), otherwise as above | **yes** | pending (Stage 3, B5) | Owner, two to three minutes after start: "fully stable", fine lines steady (D1, B4). |
+| 2026-11-23 | L1 at 14 MHz, Stage 3 firmware, hotspot open (AP+STA, setup page served, network scan every 15 s) | yes (before the hotspot) | **no** (hotspot load) | Owner: "screen started flickering to left" once the hotspot was up and a phone joined. Wi-Fi traffic competes with the panel's PSRAM reads; the precompiled libraries also set `CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y`, so Wi-Fi/LwIP buffers may sit in PSRAM. Still drifting after the hotspot closed and the station joined the home network (owner, E1). |
+| 2026-11-23 | L1 at **12 MHz** | **no picture** | not run | Owner: the panel showed full-screen blue, black, white, red, green, blue with dashed horizontal lines, also after reset: the SC7277's own colour pattern, i.e. it rejected the clock. Reverted to 14 MHz the same day. Cause: `REPO/Datasheet/SC7277_V1.0.pdf` §7.2.4 (p. 49), parallel RGB timing: **DCLK 23 min, 25 typ, 27 max MHz**; Th 808..848 DCLK, Tv 496..528 lines. The vendor's 16 MHz is already below that range; 14 MHz is the lowest the panel accepted. |
+| 2026-11-23 | Ladder revised from the datasheet | — | — | **L1 ends at 14 MHz. L2 is not applicable**: it lowers the clock around flash writes, and any such drop is rejected by the panel. Next under Wi-Fi load: **L3, bounce buffer** (10 × 800 px), at 14 MHz. |
+| 2026-11-23 | **L3**: bounce buffer 10 × 800 px (2 × 16 000 B internal DMA RAM), PCLK 14 MHz, PSRAM frame buffer, PARTIAL 800×40 internal | **yes**, with Wi-Fi connected | pending (stress, B5) | Owner: "rock steady" with the station connected (-50 dBm). Cost: internal heap 73 784 B free, largest block 32 756 B (was 104 824 / 63 476 B with Wi-Fi up at L1). Watch: HTTPS needs internal RAM; with a bounce buffer, flash writes (stress scratch writes) can stall the refill (research R8, IDFRGB). |
+| 2026-11-23 | L3 under 10 minutes of stress (Wi-Fi connected, scan and 4 kB write every 10 s, HTTPS every 30 s) | yes | **no** | Owner B5: flicker on a rhythm, then the picture stayed offset (top part shown at the bottom) with short horizontal lines on the left, also after a restart. Serial log: 38 writes, 15 HTTPS (200, 209 B, 3.6–3.8 s), 0 errors. Attributed to the 32-byte data cache line in bounce-buffer mode (FAQ; the vendor example uses 64 bytes). |
+| 2026-11-23 | **L3a**: L3 plus `flags.bb_invalidate_cache = 1` (cache invalidated after each bounce-buffer read) | **yes**, with Wi-Fi connected, 10+ minutes | **not yet tested** | Owner saw the picture correctly placed and steady for 10 minutes, believing stress was running. Correction the same day: the report afterwards showed `stress: off` with no previous run in that boot (uptime 1020 s, no restart), and the serial capture of the period was empty: stress mode had not started (the on-screen toggle likely registered twice). Valid as an idle-with-Wi-Fi result only. Stress re-run started over serial. Internal heap unchanged (73 784 B free, largest 32 756 B). |
+| 2026-11-23 | L3a, stress started over serial (Wi-Fi connected) | yes | **no** | Owner: "flickering and drifted on every 10 s, then normal again": the panel now recovers by itself (unlike L3). The 10 s rhythm matches the stress cycle (4 kB flash write and the start of a Wi-Fi scan, together); HTTPS (every 30 s) does not match. Suspected: flash write with a bounce buffer whose refill ISR is not IRAM-safe (`CONFIG_LCD_RGB_ISR_IRAM_SAFE` off in the precompiled libraries). Isolated next with `test write` and `test scan`. |
+| 2026-11-23 | L3a isolation over serial, stress off, Wi-Fi connected, no reset (uptime ~11 600 s): `test write` ×4 then `test scan` ×3, 15 s apart | — | **no** (both) | Log: each write 4096 B in 39–41 ms; each scan ~4.4 s, 15 networks. Owner: **write**: one flicker per write, then normal. **Scan**: picture garbled, drifted and dirty on the left side while scanning. Two separate causes. Write: the flash operation suspends the cache, so the non-IRAM-safe refill ISR misses ~40 ms. Only `CONFIG_LCD_RGB_ISR_IRAM_SAFE` with XIP from PSRAM (`SPIRAM_FETCH_INSTRUCTIONS`/`SPIRAM_RODATA`, as in the vendor's IDF sdkconfig) removes that, and both need L4. Scan: refill latency or bandwidth under radio load, so next is **L3b** (bounce buffer 20 lines, LVGL draw buffer 20 lines). |
+| 2026-11-23 | **L3b**: L3a with bounce buffer 20 × 800 px (2 × 32 000 B internal DMA RAM), LVGL PARTIAL 800×20 (32 000 B internal) | **yes**, with Wi-Fi connected | scans **yes**; writes not yet re-run | `test scan` ×3, 15 s apart (4.4 s each, 13–15 networks, uptime 133–168 s, no reset). Owner: picture good at idle and "during 3 scans screen was good, no problem". **Scan cause fixed.** Firmware 1 497 067 B (47.6 %); internal heap 73 572 B free, largest 32 756 B (unchanged). The write flicker remains (needs L4, see the row above). |
+| 2026-11-23 | L3b under 10 minutes of stress, started over serial | yes | **no** | Owner: "drift, garbling and dirt left edge some of the time"; A4 silent. Log clean: 605 s, 61 cycles, scan 61/0, write 61/0, https 21/0/0, no restart, no password in the log; internal heap 73 296 B free, largest 31 732 B. In a stress cycle the write runs at the scan start, and every third cycle HTTPS (3.2–3.6 s, once 9.1 s) also runs inside the scan. Neither HTTPS nor the overlap had been isolated, so `test https` and `test mix` were added. |
+| 2026-11-23 | L3b isolation: `test https` ×3 (20 s apart), then `test mix` ×3 (scan with a write at its start, 15 s apart) | — | https **yes**; mix **no** | Log: HTTPS 200, 209 B, 2.35 s each. Mix: write 47–50 ms during the scan (40 ms alone), scan ~4.5 s. Owner: HTTPS "screen was good"; mix "drifted and garbled immediately, 2 or 3 times". **Cause: a flash write started while a Wi-Fi scan runs.** Each on its own is fine (the write's single flicker is accepted). Fix **L3c**: the network worker never starts a stress write while a scan runs. The write waits for the scan to finish (`g_write_pending`). **Rule for later slices: no flash write (NVS or cache files) while a Wi-Fi scan is in progress.** |
+| 2026-11-23 | **L3c** under 10 minutes of stress (write deferred until the scan ends) | yes | **no** | Log clean: 605 s, 60 cycles, scan 60/0, write 60/0, https 21/0/0, no restart, no password; every write logged after its scan (for example scan done 43 947 ms, write 43 991 ms); internal heap 73 248 B free. Owner: "on 15th sec garbled and drifted, on 45th sec return to normal, on 55th garbled, 75th normal, 90th garbled, 135th normal …". Episodes last 20–45 s and line up with neither the writes nor HTTPS. `CONFIG_LCD_RGB_RESTART_IN_VSYNC` is already 1 in the precompiled libraries (`qio_opi/include/sdkconfig.h`), so `esp_lcd_rgb_panel_restart` would add nothing. **Arduino-only measures exhausted (L3, L3a, L3b, L3c).** The remaining fixes need build options the precompiled libraries fix: `CONFIG_LCD_RGB_ISR_IRAM_SAFE`, XIP from PSRAM, and a 64-byte data cache line, as in the vendor's IDF sdkconfig. That is L4. |
+| 2026-11-23 | Owner decision: **L4 as plain ESP-IDF**, spike first (`spikes/l4-idf/`), port the platform layer only if the spike passes | — | — | Correction to the rows above: the vendor's IDF Lesson03 sdkconfig (ESP-IDF 5.5.4) has the 64-byte data cache line and `SPIRAM_RODATA`, but **not** `LCD_RGB_ISR_IRAM_SAFE`, `SPIRAM_XIP_FROM_PSRAM` or `LCD_RGB_RESTART_IN_VSYNC`, and that example has no Wi-Fi. The spike adds those three on top of the vendor set. |
+| 2026-11-23/24 | **L4 spike**: ESP-IDF 5.5.5 (`framework-espidf@4.50505.0` on `espressif32@8.0.0`), PCLK 14 MHz, bounce buffer 10 × 800 px, one PSRAM frame buffer, `dma_burst_size` 64; `SPIRAM_XIP_FROM_PSRAM`, `LCD_RGB_ISR_IRAM_SAFE`, `LCD_RGB_RESTART_IN_VSYNC`, `ESP32S3_DATA_CACHE_LINE_64B`; CPU writes to the frame buffer every 100 ms | **yes** | **yes** | Harsher than product stress: every 10 s a scan **and** a 4 kB erase-and-write start together (the `test mix` case), and HTTPS every 30 s. Boot log: silence acknowledged at 52 ms (attempt 1), display at 125 ms, Wi-Fi connected at 2.4 s from the product's stored NVS details (not erased, password not logged). Counters after the run, same boot (no restart): cycles 60, scan 60/0, write 60/0, https 20/0. Internal heap 219 051 B free, largest 108 544 B (Arduino L3b: 73 296 / 31 732). Owner: "everything is stable". **L4 passes; the platform layer is ported to ESP-IDF.** |
+| 2026-11-24 | **L4 in the product firmware** (decision 0002): `src/platform` on ESP-IDF 5.5.5, same display values as the spike, LVGL PARTIAL 800×40 | **yes** (B1–B4, C1) | **yes** (B5) | Serial checks first: HTTPS 200 in 1.8 s, scan 2.8 s (15 networks), 4 kB write 12–14 ms (40 ms on Arduino), `test mix` clean. 10 minutes of stress: 605 s, 61 cycles, scan 61/0, write 61/0, https 21/0/0 (2.8 s each), no restart, no password in the log. Owner: "image is good always"; A4 silent. Internal heap 56 467 B free, largest 31 744 B (the Arduino build had 73 296 / 31 732). The write flicker accepted on 2026-11-23 is gone, so the spec allowance for it was removed (SC-003, Story 3). |
