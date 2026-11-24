@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Pixel checks on the rendered diagnostic screen (spec 001, tasks T034, research R8).
+"""Pixel checks on the rendered screens.
+
+Spec 003 (FR-021, SC-002): for each main-screen fixture 01..14 in out/snapshots, the strip box
+must be 24..775 x 264..293, the now marker's centre must be X(now) +-1 px (02-ui-spec.md §3), and
+the current column box must match the one measured in the reference render +-1 px (§4.5).
+
+Spec 001 (tasks T034, research R8): the diagnostic screen's test pattern, below.
 
 Reads out/snapshots/diag_idle.png (written by `pio run -e sim -t exec`) and checks, pixel by
 pixel, the parts of the test pattern the owner later judges by eye:
@@ -17,10 +23,13 @@ Exit:  0 all checks pass, 1 a check failed, 2 the file could not be read.
 from __future__ import annotations
 
 import argparse
+import sys as _sys
 import struct
 import sys
 import zlib
 from pathlib import Path
+
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 WIDTH, HEIGHT = 800, 480
 WHITE, BLACK = (255, 255, 255), (0, 0, 0)
@@ -113,6 +122,45 @@ def check(rows: list[list[tuple[int, int, int]]]) -> list[str]:
     return errors
 
 
+# Main-screen fixtures (spec 003 research R10): name -> second of day (None: no marker).
+FIXTURES = {
+    "01-main-ogle-1432": 52327, "02-main-gece-0330": 12600, "03-main-imsak-0650": 24600,
+    "04-main-kusluk-1000": 36000, "05-main-vakit-girdi-1255": 46500, "06-main-ikindi-1620": 58800,
+    "07-main-az-kaldi-1742": 63720, "08-main-aksam-1820": 66000,
+    "09-main-yatsi-2130": 77400, "10-state-offline": 52327, "11-state-cache-ending": 52327,
+    "12-state-calculated": 52327, "13-state-time-not-set": None, "14-state-no-data": 52327,
+}
+
+
+def check_main(snap_dir: Path, ref_dir: Path) -> list[str]:
+    import measure_snapshot as ms
+
+    errors: list[str] = []
+    for name, second in FIXTURES.items():
+        path = snap_dir / f"{name}.png"
+        try:
+            _, _, rows = read_png(path.read_bytes())
+            _, _, ref_rows = read_png((ref_dir / f"{name}.png").read_bytes())
+        except (OSError, ValueError, zlib.error) as exc:
+            errors.append(f"{name}: cannot read snapshot or reference ({exc})")
+            continue
+        got, ref = ms.measure(rows), ms.measure(ref_rows)
+        strip = got["strip"]
+        if strip is None or any(abs(a - b) > 1 for a, b in zip(strip, [24, 264, 775, 293])):
+            errors.append(f"{name}: strip box {strip}, expected [24, 264, 775, 293] +-1")
+        if second is None:
+            if got["marker"] is not None:
+                errors.append(f"{name}: marker shown, expected none")
+        else:
+            expected_x = 24 + second / 86400 * 752
+            if got["marker"] is None or abs(got["marker"]["x"] - expected_x) > 1:
+                errors.append(f"{name}: marker at {got['marker'] and got['marker']['x']}, expected {expected_x:.1f} +-1")
+        a, b = got["current_column"], ref["current_column"]
+        if (a is None) != (b is None) or (a and any(abs(x - y) > 1 for x, y in zip(a, b))):
+            errors.append(f"{name}: current column box {a}, reference {b}")
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dir", type=Path, default=Path(__file__).resolve().parent.parent / "out" / "snapshots")
@@ -133,6 +181,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {e}")
         return 1
     print("Snapshot check passed: border white on all four edges, line field alternates, bar colours exact.")
+    main_errors = check_main(args.dir, Path(__file__).resolve().parent.parent / "docs" / "design" / "screens")
+    if main_errors:
+        print(f"GEOMETRY CHECK FAILED: {len(main_errors)} problem(s) in the main-screen fixtures")
+        for e in main_errors:
+            print(f"  {e}")
+        return 1
+    print(f"Geometry check passed: {len(FIXTURES)} main-screen fixtures (strip, marker, current column) within 1 px.")
     return 0
 
 

@@ -28,10 +28,21 @@ void serial_console_print_help() {
         "  wifi cancel   close the hotspot, keep stored details\n"
         "  wifi forget   erase stored Wi-Fi details and disconnect\n"
         "  diag          show the diagnostic screen\n"
+        "  main          back to the main screen (stops stress mode)\n"
         "  test write    one 4 kB scratch write (diagnostic)\n"
         "  test scan     one Wi-Fi scan (diagnostic)\n"
         "  test https    one HTTPS request (diagnostic)\n"
-        "  test mix      one scan with a write at its start (diagnostic)\n");
+        "  test mix      one scan with a write at its start (diagnostic)\n"
+#if defined(NVP_DEV_TOOLS) && NVP_DEV_TOOLS
+        "  time get                         read the board clock\n"
+        "  time set YYYY-MM-DD HH:MM:SS     set the board clock (local time)\n"
+        "  clock rtc                        follow the board clock\n"
+        "  clock sim YYYY-MM-DD HH:MM:SS    simulated local time\n"
+        "  clock speed N | pause | run      simulated clock, speed 1..3600\n"
+        "  state ok|offline|calculated|no_time|no_data | cache_ending N | auto\n"
+        "  fixture N | off                  reference fixture 1..14\n"
+#endif
+    );
 }
 
 void serial_console_poll(const ConsoleHandlers& handlers) {
@@ -39,9 +50,20 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
     char line[96];
     const platform::console::LineStatus status = platform::console::poll_line(line, sizeof line);
     if (status == platform::console::LineStatus::None) return;
-    const Command command = status == platform::console::LineStatus::Overflow
-                                ? Command::Unknown
-                                : nvp::diag::parse_command(line);
+    nvp::diag::ParsedCommand parsed;
+    if (status != platform::console::LineStatus::Overflow) parsed = nvp::diag::parse_command_line(line);
+    Command command = parsed.command;
+#if !(defined(NVP_DEV_TOOLS) && NVP_DEV_TOOLS)
+    // Release build: the development commands do not exist (SYS-06, spec 003 FR-018).
+    switch (command) {
+        case Command::TimeGet: case Command::TimeSet: case Command::ClockRtc: case Command::ClockSim:
+        case Command::ClockSpeed: case Command::ClockPause: case Command::ClockRun: case Command::StateForce:
+        case Command::StateAuto: case Command::Fixture: case Command::FixtureOff: case Command::InvalidArgument:
+            command = Command::Unknown;
+            break;
+        default: break;
+    }
+#endif
     switch (command) {
         case Command::Empty: break;
         case Command::Help: serial_console_print_help(); break;
@@ -55,8 +77,26 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::TestScan: call(handlers.test_scan); break;
         case Command::TestHttps: call(handlers.test_https); break;
         case Command::TestMix: call(handlers.test_mix); break;
-        // Slice 1 has no product screen: the device is always in the diagnostic mode (FR-007a).
-        case Command::Diag: platform::console::write("already in diagnostic mode\n"); break;
+        case Command::Diag:
+        case Command::Main:
+        case Command::TimeGet:
+        case Command::TimeSet:
+        case Command::ClockRtc:
+        case Command::ClockSim:
+        case Command::ClockSpeed:
+        case Command::ClockPause:
+        case Command::ClockRun:
+        case Command::StateForce:
+        case Command::StateAuto:
+        case Command::Fixture:
+        case Command::FixtureOff:
+            if (handlers.screen_command != nullptr) {
+                handlers.screen_command(parsed);
+            } else {
+                platform::console::write("not available in this stage\n");
+            }
+            break;
+        case Command::InvalidArgument: platform::console::write("invalid argument, type help\n"); break;
         case Command::Unknown: platform::console::write("unknown command, type help\n"); break;
     }
 }

@@ -15,7 +15,8 @@ Three rules shape everything:
 | 0 | Repository, Spec Kit, constitution, check command | done |
 | 1 | Silent board bring-up ([spec 001](specs/001-silent-board-bringup/spec.md)) | all three stages verified on the device: silence, picture, touch, Wi-Fi setup, 10-minute stress test; close-out in progress |
 | 2 | Prayer-time engine ([spec 002](specs/002-prayer-engine/spec.md)): period, countdown, columns, kerahat, Turkish text; tested to the second over a whole day | done on the development machine |
-| 3–10 | Main screen, Wi-Fi setup, time, data, refresh, settings, release | planned ([roadmap](docs/specification/06-roadmap.md)) |
+| 3 | Main screen ([spec 003](specs/003-main-screen/spec.md)): the approved design with Barlow fonts, all fourteen reference states, time from the board's battery-backed clock, hidden diagnostics | done; owner checks passed 2026-11-24 |
+| 4–10 | Wi-Fi setup, network time, data, refresh, settings, release | planned ([roadmap](docs/specification/06-roadmap.md)) |
 
 ## Repository layout
 
@@ -66,7 +67,9 @@ Git, Python 3.11+, `uv`, PlatformIO Core 6.2+, the Spec Kit CLI (`specify`) 1.0.
 | Build firmware | `pio run -e crowpanel7_advance` |
 | Flash | `pio run -e crowpanel7_advance -t upload` |
 | Serial monitor | `pio device monitor -b 115200` |
-| Render the engineering screens | `pio run -e sim -t exec` |
+| Render the screens (diagnostic, and main-screen fixtures 01–14) | `pio run -e sim -t exec` |
+| Compare the main screen with the references | `python tools/compare_reference.py` (images in `out/compare/`) |
+| Regenerate the fonts | `python assets/fonts/gen_fonts.py` (needs Node.js) |
 | Print the engine's output table | `pio run -e engine_table`, then `python tools/check_engine_table.py` |
 
 `check` runs the tool tests, the silence check, the TLS check, the host tests, the engine table check and the firmware build. It then prints the image size against the 2.9 MiB budget, the size of the diagnostic mode, checks the linked image for audio drivers, and runs the host UI harness. The silence check also runs before every PlatformIO build and test run.
@@ -85,8 +88,13 @@ If the PlatformIO IDE rewrites `.gitignore` with its own template, restore it wi
   | `wifi setup`, `wifi cancel`, `wifi forget` | open the setup hotspot, close it, or erase the stored Wi-Fi details |
   | `diag` | show the diagnostic screen |
   | `test write`, `test scan`, `test https`, `test mix` | one diagnostic operation, logged with its duration |
+  | `main` | from the diagnostic screen back to the main screen |
+  | `time get`, `time set YYYY-MM-DD HH:MM:SS` | read or set the board's clock (local time; development builds) |
+  | `clock rtc`, `clock sim …`, `clock speed N`, `clock pause`, `clock run` | real or simulated time (development builds) |
+  | `state …`, `fixture 1..14`, `fixture off` | force a screen state, show a reference fixture (development builds) |
 
   There is deliberately no backlight command. Passwords are never printed.
+- **Hidden diagnostics**: the device starts on the main screen; hold two fingers on it for 5 seconds (or send `diag`) to open the diagnostic screen.
 - **Wi-Fi setup**: on the device, open settings and start the setup; join the `NamazVakti-XXXX` hotspot from a phone with the 8-digit password shown on the screen, and open `192.168.4.1`.
 - **DIP switches S1/S0**: both ON ("MIC&TF Card"), which disconnects the ESP32 from the amplifier.
 - **Factory firmware backup**: keep it in `backup/`, which git ignores. The command is in [spec 001 quickstart](specs/001-silent-board-bringup/quickstart.md).

@@ -24,6 +24,7 @@ bool g_ready = false;
 bool g_pressed = false;
 int16_t g_x = 0;
 int16_t g_y = 0;
+uint8_t g_points = 0;
 
 bool probe(uint8_t address) { return i2c::probe(address); }
 
@@ -82,6 +83,7 @@ bool read_point(int16_t* x, int16_t* y) {
     uint8_t status = 0;
     if (read_regs(kRegStatus, &status, 1) && (status & 0x80) != 0) {
         const uint8_t points = status & 0x0F;
+        g_points = points;
         if (points > 0) {
             uint8_t p[4] = {};
             if (read_regs(kRegPoint1, p, sizeof p)) {
@@ -99,5 +101,7 @@ bool read_point(int16_t* x, int16_t* y) {
     *y = g_y;
     return g_pressed;
 }
+
+uint8_t last_points() { return g_pressed ? g_points : 0; }
 
 }  // namespace platform::touch

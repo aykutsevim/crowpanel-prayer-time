@@ -24,6 +24,7 @@ void init();
 
 Snapshot read();
 uint32_t uptime_ms();
+int64_t uptime_us();  // 64-bit, does not wrap (spec 003 clock)
 
 // Every platform start-up function except the silence step calls this before it touches its
 // peripheral. The silence step reads the count: zero means it really ran first.

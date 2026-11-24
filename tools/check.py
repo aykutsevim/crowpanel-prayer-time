@@ -9,7 +9,10 @@ Steps, in order, stopping at the first failure:
   4b. engine table:     pio run -e engine_table, then tools/check_engine_table.py (spec 002 FR-022)
   5. firmware build:    pio run -e crowpanel7_advance
   6. size report against the 2.9 MiB budget, then the diagnostic mode's share (FR-032)
-  7. UI snapshots:      pio run -e sim -t exec  (engineering screens, FR-008)
+  7. UI snapshots:      pio run -e sim -t exec  (engineering screens, FR-008; main-screen fixtures
+     01..14 and the redraw accounting, spec 003 FR-015, FR-016, FR-020)
+  8. snapshot pixels and main-screen geometry (spec 003 FR-021), then the side-by-side comparison
+     images in out/compare/ for review (spec 003 SC-001; informational)
 
 Usage: python tools/check.py [--skip-firmware]
 """
@@ -88,6 +91,7 @@ def main() -> None:
     step("image silence check", [py, "tools/check_elf_silence.py", str(build / "firmware.elf")])
     step("ui snapshots", [pio, "run", "-e", "sim", "-t", "exec"])
     step("snapshot pixels", [py, "tools/check_snapshots.py"])
+    step("reference comparison", [py, "tools/compare_reference.py"])
     print("\nCHECK PASSED")
 
 

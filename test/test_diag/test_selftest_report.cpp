@@ -71,6 +71,16 @@ static void test_report_has_contract_keys_in_order() {
     TEST_ASSERT_EQUAL_UINT32(std::strlen(kStage1Report), n);
 }
 
+static void test_clock_and_screen_lines() {  // spec 003 contracts/serial-console.md
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.clock_line = "rtc 2026-11-24 12:30:05 local, valid";
+    in.screen_line = "main (state no_data)";
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(
+        std::strstr(buf, "\nclock: rtc 2026-11-24 12:30:05 local, valid\nscreen: main (state no_data)\n=== END ===\n"));
+}
+
 static void test_failed_and_skipped_carry_reasons() {
     char buf[1024];
     ReportInput in = stage1_input();
@@ -304,6 +314,7 @@ static void test_small_buffer_is_truncated_safely() {
 
 void run_selftest_report_tests() {
     RUN_TEST(test_report_has_contract_keys_in_order);
+    RUN_TEST(test_clock_and_screen_lines);
     RUN_TEST(test_failed_and_skipped_carry_reasons);
     RUN_TEST(test_skipped_without_reason_still_says_why_missing);
     RUN_TEST(test_reason_is_truncated_and_ascii);

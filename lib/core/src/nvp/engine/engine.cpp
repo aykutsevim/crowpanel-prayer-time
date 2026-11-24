@@ -73,6 +73,8 @@ void evaluate(const Input& in, MainView& out) {
     if (!usable(in.today, day)) return;  // ENG-08: no data
     const DayRecord& today = *in.today;
     out.has_data = true;
+    out.has_stored_times = true;
+    for (uint8_t k = 0; k < kVakitCount; ++k) out.strip_minutes[k] = today.minutes[k];
 
     // Today's six vakits, and the two neighbour times the night period needs (ENG-03, ENG-04).
     LocalSeconds t[kVakitCount];
@@ -176,6 +178,21 @@ void evaluate(const Input& in, MainView& out) {
 
     text::format_hijri(today.hijri, out.hijri_text, sizeof out.hijri_text);
     fill_kerahat(today, in.settings, out);
+}
+
+void evaluate_no_time(const DayRecord* stored, const Settings& settings, MainView& out) {
+    out = MainView{};
+    for (uint8_t k = 0; k < kVakitCount; ++k) out.columns[k].name = tr::kVakitNames[k];
+    if (stored == nullptr || !valid(*stored)) return;
+    out.has_stored_times = true;
+    for (uint8_t k = 0; k < kVakitCount; ++k) {
+        Column& c = out.columns[k];
+        out.strip_minutes[k] = stored->minutes[k];
+        c.minutes = stored->minutes[k];
+        c.state = ColumnState::Later;
+        format_hhmm(c.minutes, c.time_text, sizeof c.time_text);
+    }
+    fill_kerahat(*stored, settings, out);
 }
 
 }  // namespace nvp::engine
