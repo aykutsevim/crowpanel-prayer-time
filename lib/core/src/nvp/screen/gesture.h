@@ -22,4 +22,28 @@ private:
     uint32_t start_ = 0;
 };
 
+// The touch gestures of 02 §8 plus the hidden one (spec 004 FR-008, research R12):
+//   Tap             one finger, down at most 600 ms, moved at most 24 px; reported on lift;
+//   Hold5s          one finger kept down 5 s within 24 px; reported once, no tap follows;
+//   TwoFingerHold5s two or more fingers for 5 s (TwoFingerHold above).
+// A second finger at any time cancels the tap and the one-finger hold of that touch.
+enum class Touch : uint8_t { None, Tap, Hold5s, TwoFingerHold5s };
+
+class TouchClassifier {
+public:
+    static constexpr uint32_t kTapMaxMs = 600;
+    static constexpr int32_t kMoveMaxPx = 24;
+    static constexpr uint32_t kHoldMs = 5000;
+
+    // Feed every touch report: monotonic time, number of points and the first point's position.
+    Touch feed(uint32_t ms, uint8_t points, int16_t x, int16_t y);
+
+private:
+    TwoFingerHold two_;
+    bool down_ = false;
+    bool spoiled_ = false;  // moved, a second finger, or the hold already fired
+    uint32_t start_ = 0;
+    int16_t x0_ = 0, y0_ = 0;
+};
+
 }  // namespace nvp::screen

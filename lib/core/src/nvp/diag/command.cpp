@@ -142,7 +142,7 @@ ParsedCommand parse_command_line(const char* line) {
         c.number = n;
     } else if (starts_with(norm, "fixture", &rest)) {
         const char* p = rest + 1;
-        const bool ok = *rest == ' ' && number(p, 0, &n) && *p == '\0' && n >= 1 && n <= 14;
+        const bool ok = *rest == ' ' && number(p, 0, &n) && *p == '\0' && n >= 1 && n <= 17;  // 15-17: spec 004 screens
         c.command = ok ? Command::Fixture : Command::InvalidArgument;
         c.number = n;
     } else if (starts_with(norm, "state", &rest)) {

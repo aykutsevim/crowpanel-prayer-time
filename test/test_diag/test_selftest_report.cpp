@@ -81,6 +81,22 @@ static void test_clock_and_screen_lines() {  // spec 003 contracts/serial-consol
         std::strstr(buf, "\nclock: rtc 2026-11-24 12:30:05 local, valid\nscreen: main (state no_data)\n=== END ===\n"));
 }
 
+static void test_mode_and_location_lines() {  // spec 004 contracts/serial-console.md, FR-024
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.screen_line = "setup";
+    in.mode_line = "setup, phones 1, last wrong_password";
+    in.location_line = "İSTANBUL / SULTANBEYLİ (9549)";
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(
+        buf, "\nscreen: setup\nmode: setup, phones 1, last wrong_password\nlocation: İSTANBUL / SULTANBEYLİ (9549)\n"
+             "=== END ===\n"));
+    in.mode_line = nullptr;
+    in.location_line = nullptr;
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NULL(std::strstr(buf, "\nmode: "));
+}
+
 static void test_failed_and_skipped_carry_reasons() {
     char buf[1024];
     ReportInput in = stage1_input();
@@ -315,6 +331,7 @@ static void test_small_buffer_is_truncated_safely() {
 void run_selftest_report_tests() {
     RUN_TEST(test_report_has_contract_keys_in_order);
     RUN_TEST(test_clock_and_screen_lines);
+    RUN_TEST(test_mode_and_location_lines);
     RUN_TEST(test_failed_and_skipped_carry_reasons);
     RUN_TEST(test_skipped_without_reason_still_says_why_missing);
     RUN_TEST(test_reason_is_truncated_and_ascii);
