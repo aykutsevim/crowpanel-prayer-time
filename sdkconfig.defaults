@@ -28,6 +28,8 @@ CONFIG_LCD_RGB_RESTART_IN_VSYNC=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
 CONFIG_ESP_TLS_INSECURE=n
+# Certificate validity dates are checked too (spec 005 OD5-1, research R3): HTTPS waits for a valid clock.
+CONFIG_MBEDTLS_HAVE_TIME_DATE=y
 
 # --- Crash record in the coredump partition (report line "reset:") ---
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
@@ -39,3 +41,6 @@ CONFIG_LOG_DEFAULT_LEVEL_WARN=y
 # --- Captive portal (spec 004 research R5): phones open many connections at once. httpd keeps 3
 # sockets for itself; 7 for clients, plus DNS (UDP 53) and the HTTPS client of later slices.
 CONFIG_LWIP_MAX_SOCKETS=16
+
+# --- Network time (spec 005 research R1): three servers of different operators (TIME-01) ---
+CONFIG_LWIP_SNTP_MAX_SERVERS=3

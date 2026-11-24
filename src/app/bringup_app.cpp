@@ -35,6 +35,7 @@
 #include "platform/display.h"
 #include "platform/storage.h"
 #include "platform/sysinfo.h"
+#include "platform/systime.h"
 #include "platform/touch_gt911.h"
 
 namespace app {
@@ -86,7 +87,11 @@ nvp::screen::Touch g_touch_event = nvp::screen::Touch::None;
 int16_t g_tap_x = 0, g_tap_y = 0;
 uint32_t g_last_touch = 0;
 uint32_t g_confirm_shown_at = 0;
-bool g_log_lvgl_memory = true;  // one line after start-up and after each fixture (spec 004 T068)
+bool g_log_lvgl_memory = true;
+// `time jitter N` (spec 005 R6): ms within the real second at which each new second was flushed.
+uint32_t g_jitter_until = 0, g_jitter_seconds = 0;
+uint16_t g_jitter_ms[3600];
+uint32_t g_jitter_count = 0;  // one line after start-up and after each fixture (spec 004 T068)
 
 void log_lvgl_memory() {
     lv_mem_monitor_t m;
@@ -151,14 +156,18 @@ void build_main_view(nvp::engine::MainView& v, nvp::ui::SystemView& s) {
         nvp::ui::fixture_view_at(g_fixture, sod, v, s);
     } else {
         s = nvp::ui::SystemView{};
+        // Spec 005 FR-007: the state from real inputs, in the order of 02 §6. Until Slice 6 no record
+        // is stored, so a valid clock gives no_data.
+        nvp::screen::StateInputs st;
+        st.clock_valid = n.valid;
+        st.today_present = false;
+        s.state = nvp::screen::select_state(st);
         if (n.valid) {
             nvp::engine::Input in;
             in.now = moment_of(n.local);
             nvp::engine::evaluate(in, v);  // no records loaded: has_data is false
-            s.state = nvp::screen::SystemState::NoData;
         } else {
             nvp::engine::evaluate_no_time(nullptr, nvp::engine::Settings{}, v);
-            s.state = nvp::screen::SystemState::NoTime;
         }
     }
     if (g_forced) {
@@ -270,6 +279,9 @@ void print_report() {
     char clock_line[64];
     clock::describe(clock_line, sizeof clock_line);
     in.clock_line = clock_line;
+    char time_line[128];
+    clock::describe_time(time_line, sizeof time_line);
+    in.time_line = time_line;
     char screen_line[48];
     if (g_mode == Mode::Main && g_product == Product::Setup) {
         std::snprintf(screen_line, sizeof screen_line, "setup%s", g_fixture != 0 ? " (fixture)" : "");
@@ -431,7 +443,7 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
             const nvp::time::RtcReading r = clock::read_rtc();
             if (r.valid) {
                 format_date_time(r.utc, a, sizeof a);
-                format_date_time(nvp::time::utc_to_local(r.utc), b, sizeof b);
+                format_date_time(clock::to_local(r.utc), b, sizeof b);
                 platform::console::printf("rtc: %s UTC (%s local), valid\n", a, b + 11);
             } else {
                 platform::console::printf("rtc: not valid (%s)\n", nvp::time::reason_name(r.reason));
@@ -443,7 +455,7 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
             const int64_t local = local_of(c);
             if (clock::set_rtc_local(local, &why)) {
                 g_fixture = 0;
-                format_date_time(nvp::time::local_to_utc(local), a, sizeof a);
+                format_date_time(clock::to_utc(local), a, sizeof a);
                 platform::console::printf("rtc set: %s UTC\n", a);
             } else {
                 platform::console::printf("rtc set failed (%s)\n", why);
@@ -451,9 +463,9 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
             break;
         }
         case Command::ClockRtc:
-            clock::use_rtc();
+            clock::use_real();
             g_fixture = 0;
-            platform::console::write("clock: rtc\n");
+            platform::console::write("clock: real (board clock and network time, spec 005)\n");
             break;
         case Command::ClockSim:
             clock::use_sim(local_of(c), false);
@@ -503,9 +515,37 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
         case Command::FixtureOff:
             g_fixture = 0;
             g_forced = false;
-            clock::use_rtc();
+            clock::use_real();
             platform::console::write("fixture: off\n");
             break;
+        case Command::TzGet:
+            platform::console::printf("tz: %s\n", clock::zone());
+            return;
+        case Command::TzSet:
+            if (clock::set_zone(c.text)) {
+                platform::console::printf("tz: set %s\n", clock::zone());
+            } else {
+                platform::console::write("tz: refused (invalid)\n");
+                return;
+            }
+            break;
+        case Command::TimeSync:
+            net::request_time_sync();  // the worker logs the result
+            return;
+        case Command::NtpOn:
+        case Command::NtpOff:
+            net::request_ntp(c.command == Command::NtpOn);
+            return;
+        case Command::ClockInvalid:
+            clock::invalidate();
+            platform::console::write("clock: invalid until the next sync\n");
+            break;
+        case Command::TimeJitter:
+            g_jitter_until = platform::sysinfo::uptime_ms() + static_cast<uint32_t>(c.number) * 1000;
+            g_jitter_seconds = static_cast<uint32_t>(c.number);
+            g_jitter_count = 0;
+            platform::console::printf("jitter: measuring for %ld s\n", static_cast<long>(c.number));
+            return;
         default:
             return;
     }
@@ -785,12 +825,62 @@ void handle_touch(uint32_t now) {
     }
 }
 
+void report_jitter() {
+    uint16_t* v = g_jitter_ms;
+    const uint32_t n = g_jitter_count;
+    // Insertion sort is enough for at most 3600 values, once.
+    for (uint32_t i = 1; i < n; ++i) {
+        const uint16_t x = v[i];
+        uint32_t j = i;
+        while (j > 0 && v[j - 1] > x) {
+            v[j] = v[j - 1];
+            --j;
+        }
+        v[j] = x;
+    }
+    if (n == 0) {
+        platform::console::write("jitter: no samples\n");
+        return;
+    }
+    const uint32_t p99 = n * 99 / 100 < n ? n * 99 / 100 : n - 1;
+    platform::console::printf("jitter: %lu s, %lu samples, median %u ms, p99 %u ms, max %u ms\n",
+                              static_cast<unsigned long>(g_jitter_seconds), static_cast<unsigned long>(n),
+                              static_cast<unsigned>(v[n / 2]), static_cast<unsigned>(v[p99]),
+                              static_cast<unsigned>(v[n - 1]));
+}
+
+// TIME-07 (R6): when the displayed second changes, draw it now and flush, not at the next 100 ms tick.
+bool second_changed() {
+    static int64_t last_second = -1;
+    const clock::Now n = clock::now();
+    const int64_t sec = n.valid ? n.local : -1;
+    if (sec == last_second) return false;
+    last_second = sec;
+    return true;
+}
+
 void loop() {
     serial_console_poll(kHandlers);
+    clock::apply_pending();  // SNTP and fallback samples (spec 005 FR-005)
     if (!g_display_ok) return;
     static uint32_t last = 0;
     const uint32_t now = platform::sysinfo::uptime_ms();
     if (g_mode == Mode::Main) handle_touch(now);
+    if (g_mode == Mode::Main && second_changed()) {
+        update_product();
+        platform::display::refresh_now();
+        if (g_jitter_until != 0) {
+            const int64_t us = platform::systime::utc_us() % 1000000;
+            if (g_jitter_count < sizeof g_jitter_ms / sizeof g_jitter_ms[0]) {
+                g_jitter_ms[g_jitter_count++] = static_cast<uint16_t>(us / 1000);
+            }
+            if (static_cast<int32_t>(now - g_jitter_until) >= 0) {
+                g_jitter_until = 0;
+                report_jitter();
+            }
+        }
+        last = now;
+    }
     if (now - last >= kViewRefreshMs) {
         last = now;
         if (g_mode == Mode::Main) {

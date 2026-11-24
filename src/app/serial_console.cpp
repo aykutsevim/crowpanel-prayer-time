@@ -27,6 +27,9 @@ void serial_console_print_help() {
         "  wifi setup    show the setup screen and open the device network\n"
         "  wifi cancel   leave setup, back to running (needs Wi-Fi and location)\n"
         "  wifi forget   erase the Wi-Fi details (location kept), then setup\n"
+        "  tz [zone]     show or set the POSIX time zone (default <+03>-3)\n"
+        "  time sync     ask the time servers now;  ntp on|off  time servers on or off\n"
+        "  clock invalid  time not valid until the next sync;  time jitter N  second alignment\n"
         "  diag          show the diagnostic screen\n"
         "  main          back to the main screen (stops stress mode)\n"
         "  test write    one 4 kB scratch write (diagnostic)\n"
@@ -59,6 +62,8 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::TimeGet: case Command::TimeSet: case Command::ClockRtc: case Command::ClockSim:
         case Command::ClockSpeed: case Command::ClockPause: case Command::ClockRun: case Command::StateForce:
         case Command::StateAuto: case Command::Fixture: case Command::FixtureOff: case Command::InvalidArgument:
+        case Command::TzSet: case Command::TimeSync: case Command::NtpOn: case Command::NtpOff:
+        case Command::ClockInvalid: case Command::TimeJitter:
             command = Command::Unknown;
             break;
         default: break;
@@ -90,6 +95,13 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::StateAuto:
         case Command::Fixture:
         case Command::FixtureOff:
+        case Command::TzGet:  // spec 005
+        case Command::TzSet:
+        case Command::TimeSync:
+        case Command::NtpOn:
+        case Command::NtpOff:
+        case Command::ClockInvalid:
+        case Command::TimeJitter:
             if (handlers.screen_command != nullptr) {
                 handlers.screen_command(parsed);
             } else {

@@ -16,6 +16,8 @@ struct Result {
 };
 
 // GET https://ezanvakti.imsakiyem.com/api/v2/locations/countries/2 (one allowed host, §11).
-Result probe();
+// Certificate dates are checked (spec 005 OD5-1), so it refuses with "time not valid" while the
+// app's clock is not valid; the worker passes that flag in (no app header here, R3).
+Result probe(bool time_valid);
 
 }  // namespace platform::https

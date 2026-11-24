@@ -10,12 +10,15 @@
 #include "nvp/net/submission.h"
 #include "platform/console_io.h"
 #include "platform/dns_responder.h"
+#include "app/clock.h"
+#include "platform/http_date.h"
 #include "platform/https_probe.h"
 #include "platform/settings_store.h"
 #include "platform/setup_portal.h"
 #include "platform/storage.h"
 #include "platform/sysinfo.h"
 #include "platform/tasks.h"
+#include "platform/time_sync.h"
 #include "platform/wifi_link.h"
 
 namespace app::net {
@@ -44,7 +47,19 @@ bool g_req_test_write = false;
 bool g_req_test_scan = false;
 bool g_req_test_https = false;
 bool g_req_test_mix = false;
+bool g_req_time_sync = false;
+int g_req_ntp = -1;  // -1 none, 0 off, 1 on
 Snapshot g_pub;
+
+// --- Time (spec 005 R1, R2): SNTP after the first address; the HTTP Date fallback 60 s later ---
+constexpr uint32_t kFallbackMs = 60000;
+constexpr uint32_t kFallbackRepeatMs = 6u * 3600u * 1000u;  // T038: while NTP stays silent
+bool g_time_started = false;
+bool g_ntp_on = true;
+bool g_fallback_armed = false;
+uint32_t g_fallback_at = 0;
+uint32_t g_fallback_base = 0;  // clock::network_syncs() when armed
+int g_fallback_host = 0;
 
 // --- Worker-only state (core 0) ---
 bool g_silence_ok = false;
@@ -207,6 +222,19 @@ nvp::net::Action apply(Event event) {
         std::snprintf(line, sizeof line, "wifi: connected %s", g_ssid);
         log(line);
     }
+    if ((event == Event::JoinOk || event == Event::TryOk) && step.next != Mode::Setup) {
+        if (!g_time_started) {
+            platform::time_sync::start();
+            g_time_started = true;
+        } else if (g_ntp_on) {
+            platform::time_sync::restart();
+        }
+        if (!g_fallback_armed) {
+            g_fallback_armed = true;
+            g_fallback_at = now() + kFallbackMs;
+            g_fallback_base = app::clock::network_syncs();
+        }
+    }
     g_mode = step.next;
     if (g_mode != before && nvp::net::mode_name(g_mode) != nvp::net::mode_name(before)) {
         const char* why = "";
@@ -368,6 +396,40 @@ void drive_wifi() {
     if (platform::dns::running()) platform::dns::poll();
 }
 
+// The HTTP Date fallback (TIME-02, R2): 60 s after the address (or `ntp off`) without an accepted
+// network sample, then every 60 s until one is accepted. Only on the owner's network.
+void drive_fallback() {
+    if (!g_fallback_armed || g_mode != Mode::RunUp || static_cast<int32_t>(now() - g_fallback_at) < 0) return;
+    if (app::clock::network_syncs() != g_fallback_base) {
+        g_fallback_base = app::clock::network_syncs();
+        if (app::clock::last_source() == nvp::time::TimeSource::Http) {
+            // The time servers are still silent: correct again in 6 h, when WallClock lets an Http
+            // sample replace an older time (T038, TIME-02 "keep trying"). SNTP keeps trying meanwhile.
+            g_fallback_at = now() + kFallbackRepeatMs;
+        } else {
+            g_fallback_armed = false;  // SNTP answered: the fallback is not needed
+        }
+        return;
+    }
+    const platform::http_date::Result r = platform::http_date::fetch(g_fallback_host);
+    char line[96];
+    if (r.ok) {
+        nvp::time::TimeSample s;
+        s.source = nvp::time::TimeSource::Http;
+        s.utc_us = r.utc_us;
+        s.at_uptime_us = r.at_uptime_us;
+        s.server = platform::http_date::host(g_fallback_host);
+        app::clock::post_sample(s);
+        std::snprintf(line, sizeof line, "time: http %s answered (rtt %lu ms)", s.server,
+                      static_cast<unsigned long>(r.rtt_ms));
+    } else {
+        std::snprintf(line, sizeof line, "time: http %s failed (%s)", platform::http_date::host(g_fallback_host), r.why);
+        g_fallback_host = 1 - g_fallback_host;  // the other host next time
+    }
+    log(line);
+    g_fallback_at = now() + kFallbackMs;
+}
+
 void drive_scans() {
     if (g_scan_owner == ScanOwner::None) return;
     const int r = wifi::scan_poll();
@@ -456,7 +518,7 @@ void drive_stress(bool want) {
         }
     }
     if (p.https) {
-        const platform::https::Result h = platform::https::probe();
+        const platform::https::Result h = platform::https::probe(app::clock::time_valid());
         g_counters.record_https(h.ok ? nvp::diag::HttpsOutcome::Ok : nvp::diag::HttpsOutcome::Error, h.reason);
         if (h.ok) {
             std::snprintf(line, sizeof line, "stress: https ok %d %lu B %lu.%lu s", h.status,
@@ -535,7 +597,8 @@ void worker(void*) {
     apply(Event::Boot);
     for (;;) {
         bool setup = false, cancel = false, start_over = false, stress = false, t_write = false;
-        bool t_scan = false, t_https = false, t_mix = false;
+        bool t_scan = false, t_https = false, t_mix = false, time_sync_req = false;
+        int g_req_ntp_pending = -1;
         {
             platform::tasks::Guard guard(*g_lock);
             setup = g_req_setup;
@@ -548,6 +611,10 @@ void worker(void*) {
             t_mix = g_req_test_mix;
             g_req_setup = g_req_cancel = g_req_start_over = g_req_test_write = g_req_test_scan = false;
             g_req_test_https = g_req_test_mix = false;
+            time_sync_req = g_req_time_sync;
+            g_req_ntp_pending = g_req_ntp;
+            g_req_time_sync = false;
+            g_req_ntp = -1;
         }
         if (setup) apply(Event::DevSetup);
         if (cancel) apply(Event::DevCancel);
@@ -575,7 +642,7 @@ void worker(void*) {
         }
         if (t_https) {
             log("test: https start");
-            const platform::https::Result h = platform::https::probe();
+            const platform::https::Result h = platform::https::probe(app::clock::time_valid());
             char line[80];
             if (h.ok) {
                 std::snprintf(line, sizeof line, "test: https ok %d %lu B in %lu ms", h.status,
@@ -585,7 +652,30 @@ void worker(void*) {
             }
             log(line);
         }
+        if (g_req_ntp_pending >= 0) {
+            g_ntp_on = g_req_ntp_pending == 1;
+            if (g_ntp_on) {
+                platform::time_sync::restart();
+                log("ntp: on");
+            } else {
+                platform::time_sync::stop();
+                app::clock::forget_ntp_freshness();
+                g_fallback_armed = true;  // the fallback takes over after 60 s (R11)
+                g_fallback_at = now() + kFallbackMs;
+                g_fallback_base = app::clock::network_syncs();
+                log("ntp: off");
+            }
+        }
+        if (time_sync_req) {
+            if (g_mode == Mode::RunUp && g_time_started) {
+                platform::time_sync::restart();
+                log("time: sync requested");
+            } else {
+                log("time: refused (not connected)");
+            }
+        }
         drive_wifi();
+        drive_fallback();
         platform::portal::handle();
         drive_scans();
         drive_stress(stress);
@@ -661,6 +751,19 @@ bool request_test_mix() {
     platform::tasks::Guard guard(*g_lock);
     g_req_test_mix = true;
     return true;
+}
+
+bool request_time_sync() {
+    if (g_lock == nullptr) return false;
+    platform::tasks::Guard guard(*g_lock);
+    g_req_time_sync = true;
+    return true;
+}
+
+void request_ntp(bool on) {
+    if (g_lock == nullptr) return;
+    platform::tasks::Guard guard(*g_lock);
+    g_req_ntp = on ? 1 : 0;
 }
 
 Snapshot snapshot() {

@@ -54,6 +54,10 @@ bool request_test_scan();   // refused while silence is not acknowledged (radio)
 bool request_test_https();  // same
 bool request_test_mix();    // same: a scan plus a write at its start
 
+// Spec 005 (research R1, R2, R11).
+bool request_time_sync();   // ask SNTP now; false when not connected
+void request_ntp(bool on);  // `ntp on|off`; off also restarts the fallback timer
+
 Snapshot snapshot();
 
 }  // namespace app::net

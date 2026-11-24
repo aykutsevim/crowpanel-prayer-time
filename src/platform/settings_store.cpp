@@ -16,6 +16,14 @@ constexpr const char* kSecNs = "sec";
 
 uint32_t random_word() { return esp_random(); }
 
+// The clock reads the zone at start, before the network worker has opened NVS (spec 005 T034:
+// a stored zone was lost across a restart). nvs_flash_init() is safe to call again.
+bool ensure_nvs() {
+    static bool ok = false;
+    if (!ok) ok = nvs_flash_init() == ESP_OK;
+    return ok;
+}
+
 bool get_str(nvs_handle_t h, const char* key, char* out, size_t cap) {
     size_t len = cap;
     return nvs_get_str(h, key, out, &len) == ESP_OK;
@@ -61,6 +69,24 @@ bool ensure_pin() {
         ok = nvs_set_str(h, "pin", pin) == ESP_OK && nvs_commit(h) == ESP_OK;
     }
     std::memset(pin, 0, sizeof pin);
+    nvs_close(h);
+    return ok;
+}
+
+bool load_tz(char* out, size_t cap) {
+    if (cap > 0) out[0] = '\0';
+    nvs_handle_t h;
+    if (!ensure_nvs() || nvs_open("set", NVS_READONLY, &h) != ESP_OK) return false;
+    const bool ok = get_str(h, "tz", out, cap) && out[0] != '\0';
+    nvs_close(h);
+    if (!ok && cap > 0) out[0] = '\0';
+    return ok;
+}
+
+bool store_tz(const char* tz) {
+    nvs_handle_t h;
+    if (!ensure_nvs() || nvs_open("set", NVS_READWRITE, &h) != ESP_OK) return false;
+    const bool ok = nvs_set_str(h, "tz", tz) == ESP_OK && nvs_commit(h) == ESP_OK;
     nvs_close(h);
     return ok;
 }
