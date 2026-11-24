@@ -25,6 +25,9 @@
 /* No OS integration: LVGL runs on one core (core 1) from loop(). */
 #define LV_USE_OS LV_OS_NONE
 
+/* Sub-pixel coordinates for lines and triangles: the leader lines and the marker sit at fractional
+ * x positions (02-ui-spec.md §3, X(t)); the ESP32-S3 has a single-precision FPU (spec 003). */
+#define LV_USE_FLOAT 1
 /* About 30 frames per second of UI refresh. */
 #define LV_DEF_REFR_PERIOD 33
 

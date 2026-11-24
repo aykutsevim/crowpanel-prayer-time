@@ -9,6 +9,9 @@ and sums the input sections that occupy flash or RAM images, per module:
   diag core   lib/core/src/nvp/diag/*   (archive libcore.a, members named after these files)
   app         src/app/*                 (object paths under src/app/)
 
+It also reports the main screen's fonts (lib/ui/src/fonts/*, spec 003 FR-003, FR-025) against
+their 300 kB budget (05-architecture.md §5) and fails above it.
+
 Counted: sections at a non-zero address, except .bss, .noinit, COMMON and debug sections.
 Not counted: merged string-literal sections (`*.str1.*`), because the linker attributes all
 merged strings to one object; the figures are therefore a slight underestimate.
@@ -89,6 +92,21 @@ def module_sizes(map_text: str, root: Path) -> dict[str, int]:
     return sizes
 
 
+FONT_BUDGET = 300 * 1024
+
+
+def font_bytes(map_text: str, root: Path) -> int:
+    fonts = _member_names(root, "lib/ui/src/fonts")
+    total = 0
+    for name, address, size, obj in input_sections(map_text):
+        if not _counted(name, address):
+            continue
+        m = re.search(r"/lib(nvp_ui|ui)\.a\(([^)]+)\)", obj.replace("\\", "/"))
+        if m and m.group(2) in fonts:
+            total += size
+    return total
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("map", type=Path)
@@ -101,6 +119,11 @@ def main(argv: list[str] | None = None) -> int:
     total = sum(sizes.values())
     parts = ", ".join(f"{k} {v}" for k, v in sizes.items())
     print(f"Diagnostic mode size: {total} bytes ({parts}); ships with the product (FR-032).")
+    fonts = font_bytes(args.map.read_text(encoding="utf-8", errors="replace"), args.root.resolve())
+    print(f"Fonts: {fonts} bytes = {fonts / 1024:.1f} kB of the {FONT_BUDGET // 1024} kB font budget (spec 003 FR-003).")
+    if fonts > FONT_BUDGET:
+        print("SIZE CHECK FAILED: fonts over their 300 kB budget.")
+        return 1
     return 0
 
 

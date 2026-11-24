@@ -1,6 +1,7 @@
 // Host UI harness for the engineering screens (FR-008, research R12).
 //
-// Renders view-model fixtures of the boot and diagnostic screens to out/snapshots/*.png with
+// Renders the boot and diagnostic screens (spec 001) and the main screen's fourteen reference
+// fixtures (spec 003) to out/snapshots/*.png with
 // LVGL's test display (800x480) and screenshot writer, so the implementer can check them
 // before the owner looks at the panel (CLAUDE.md, "You cannot see the panel").
 // Fixtures: contracts/diag-screens.md, "Snapshot fixtures".
@@ -13,6 +14,9 @@
 #include "diag/settings_screen.h"
 #include "diag/view_model.h"
 #include "lvgl.h"
+#include "main/fixture_view.h"
+#include "main/main_screen.h"
+#include "nvp/screen/fixtures.h"
 #include "nvp/version.h"
 
 using namespace nvp::ui::diag;
@@ -22,6 +26,9 @@ using nvp::diag::index;
 using nvp::diag::Outcome;
 using nvp::diag::set_result;
 using nvp::diag::TestName;
+
+int run_redraw_checks();  // redraw_check.cpp (spec 003 FR-015, FR-016)
+int run_edge_checks();    // edge_check.cpp (spec 003 T045, T046)
 
 namespace {
 
@@ -146,6 +153,24 @@ int main() {
     std::snprintf(hotspot.setup_message, sizeof hotspot.setup_message, "Connecting to EvAgi...");
     settings_screen_update(hotspot);
     failures += !snapshot("settings_hotspot");
+
+    // Main screen: the fourteen reference fixtures (spec 003 FR-020), named after their references.
+    lv_obj_t* main_screen = nvp::ui::main_screen_create();
+    lv_screen_load(main_screen);
+    for (const nvp::screen::Fixture& f : nvp::screen::kFixtures) {
+        nvp::engine::MainView view;
+        nvp::ui::SystemView sys;
+        nvp::ui::fixture_view(f.number, view, sys);
+        nvp::ui::main_screen_update(view, sys);
+        char name[64];
+        std::snprintf(name, sizeof name, "%s", f.reference);
+        char* dot = std::strrchr(name, '.');
+        if (dot != nullptr) *dot = '\0';
+        failures += !snapshot(name);
+    }
+
+    failures += run_redraw_checks();
+    failures += run_edge_checks();
 
     lv_deinit();
     if (failures > 0) {

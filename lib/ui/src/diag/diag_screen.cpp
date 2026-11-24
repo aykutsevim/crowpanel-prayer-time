@@ -140,6 +140,10 @@ void on_settings(lv_event_t*) {
     if (g.actions.open_settings) g.actions.open_settings(g.actions.ctx);
 }
 
+void on_main(lv_event_t*) {
+    if (g.actions.main_screen) g.actions.main_screen(g.actions.ctx);
+}
+
 lv_obj_t* button(lv_obj_t* parent, int32_t y, const char* text, lv_event_cb_t cb, lv_obj_t** text_label) {
     lv_obj_t* b = lv_button_create(parent);
     lv_obj_set_pos(b, 570, y);
@@ -279,6 +283,7 @@ lv_obj_t* diag_screen_create(Edge usb_side, const DiagActions& actions) {
     lv_obj_set_style_bg_opa(g.heartbeat, LV_OPA_COVER, 0);
 
     // Controls. No brightness control (OD1).
+    button(scr, 200, "Main screen", on_main, nullptr);  // spec 003 FR-023 (clear of the checked rows 182 and 276)
     button(scr, 300, "Stress on", on_stress, &g.stress_label);
     button(scr, 370, "Settings", on_settings, nullptr);
 

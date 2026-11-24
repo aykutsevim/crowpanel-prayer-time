@@ -66,6 +66,8 @@ struct DiagActions {
     void (*confirm_no)(void* ctx) = nullptr;
     void (*cancel_setup)(void* ctx) = nullptr;  // acts at once
     void (*back)(void* ctx) = nullptr;
+    // Leaves the hidden diagnostic mode for the main screen (spec 003 FR-023).
+    void (*main_screen)(void* ctx) = nullptr;
     void* ctx = nullptr;
 };
 
