@@ -99,8 +99,25 @@ class IdfTlsCheckTest(unittest.TestCase):
         self.assertTrue(check_tls.run(self.root))
 
     def test_secure_sdkconfig_passes(self) -> None:
-        self._write("sdkconfig.defaults", "CONFIG_ESP_TLS_INSECURE=n\nCONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y\n")
+        self._write("sdkconfig.defaults", "CONFIG_ESP_TLS_INSECURE=n\nCONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y\n"
+                                          "CONFIG_MBEDTLS_HAVE_TIME_DATE=y\n")
         self.assertEqual(check_tls.run(self.root), [])
+
+    def test_certificate_dates_must_be_checked(self) -> None:  # spec 005 OD5-1, R3
+        self._write("sdkconfig.defaults", "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y\n")
+        self.assertTrue(any("HAVE_TIME_DATE" in v for v in check_tls.run(self.root)))
+        self._write("sdkconfig.defaults", "CONFIG_MBEDTLS_HAVE_TIME_DATE=n\n")
+        self.assertTrue(check_tls.run(self.root))
+
+    def test_plain_http_date_fetch_allowed_only_in_its_file(self) -> None:  # spec 005 R2, R3
+        text = 'esp_http_client_config_t cfg = {};\nconst char* kHosts[] = {"http://a.example/", "http://b.example/"};\n'
+        self._write("src/platform/http_date.cpp", text)
+        self.assertEqual(check_tls.run(self.root), [])
+        self._write("src/platform/http_date.cpp", text + 'const char* kBad = "https://c.example/";\n')
+        self.assertTrue(check_tls.run(self.root))
+        self._write("src/platform/http_date.cpp", "int x;\n")
+        self._write("src/platform/other.cpp", text)
+        self.assertTrue(check_tls.run(self.root))
 
 
 if __name__ == "__main__":

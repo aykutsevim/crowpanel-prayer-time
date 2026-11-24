@@ -95,6 +95,8 @@ If the PlatformIO IDE rewrites `.gitignore` with its own template, restore it wi
   | `main` | from the diagnostic screen back to the main screen |
   | `time get`, `time set YYYY-MM-DD HH:MM:SS` | read or set the board's clock (local time; development builds) |
   | `clock rtc`, `clock sim …`, `clock speed N`, `clock pause`, `clock run` | real or simulated time (development builds) |
+  | `tz`, `tz <POSIX zone>` | show or set the time zone, default `<+03>-3` (spec 005) |
+  | `time sync`, `ntp on`, `ntp off`, `clock invalid`, `time jitter N` | ask the time servers now; switch them on or off (off: the HTTP fallback after 60 s); time not valid until the next sync; measure second alignment |
   | `state …`, `fixture 1..17`, `fixture off` | force a screen state, show a reference fixture (development builds) |
 
   There is deliberately no backlight command. Passwords are never printed.

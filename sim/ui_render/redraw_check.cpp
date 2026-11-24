@@ -34,11 +34,19 @@ const engine::DayRecord kDayAfter{engine::Date{2026, 11, 19},
 struct Moment {
     int day;  // 0 = 2026-11-17, 1 = 2026-11-18
     int32_t second;
+    bool no_data = false;  // spec 005: the device's path until Slice 6 (real date, no records)
 };
 
 void view_at(Moment m, engine::MainView& v, ui::SystemView& s) {
     s = ui::SystemView{};
     s.state = screen::SystemState::Ok;
+    if (m.no_data) {  // as bringup_app builds it: a valid clock and no stored record (FR-007)
+        s.state = screen::SystemState::NoData;
+        engine::Input in;
+        in.now = engine::Moment{m.day == 0 ? engine::fixture::kDate : engine::fixture::kTomorrow.date, m.second};
+        engine::evaluate(in, v);
+        return;
+    }
     std::snprintf(s.city, sizeof s.city, "%s", screen::kFixtureCity);
     std::snprintf(s.last_update, sizeof s.last_update, "%s", screen::kFixtureLastUpdate);
     engine::Input in;
@@ -88,6 +96,9 @@ int run_redraw_checks() {
         {"midnight", {0, 86399}, {1, 0}, 1.0},
         {"jump_back", {0, 54000}, {0, 50400}, 1.0},   // 15:00 -> 14:00
         {"jump_fwd", {0, 10800}, {0, 72000}, 1.0},    // 03:00 -> 20:00
+        // Spec 005 FR-010, analysis C2: midnight on the no-data path, by a tick and by a correction.
+        {"midnight_nd", {0, 86399, true}, {1, 0, true}, 1.0},
+        {"jump_mid_nd", {0, 86398, true}, {1, 3, true}, 1.0},  // 23:59:58 -> 00:00:03
     };
     int failures = 0;
     for (const Step& st : steps) {
@@ -99,6 +110,16 @@ int run_redraw_checks() {
         ui::main_screen_update(v, s);
         const int64_t area = g_invalidated;
         lv_refr_now(nullptr);
+        // The date changes exactly when the day changes (FR-010).
+        engine::MainView before;
+        ui::SystemView sb;
+        view_at(st.from, before, sb);
+        const bool day_changes = st.from.day != st.to.day;
+        const bool date_ok = (std::strcmp(before.date_text, v.date_text) != 0) == day_changes;
+        if (!date_ok) {
+            std::printf("redraw: %-10s date line %s -> %s: WRONG\n", st.name, before.date_text, v.date_text);
+            ++failures;
+        }
 
         char path[96];
         std::snprintf(path, sizeof path, "out/snapshots/redraw_%s.png", st.name);

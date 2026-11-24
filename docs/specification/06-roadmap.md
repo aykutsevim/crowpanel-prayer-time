@@ -66,6 +66,7 @@ Order matters. The early slices remove the largest risks first: can the board sh
 **Goal.** The clock on screen is the real local time, or the screen says it is not.
 **Delivers.** SNTP with multiple servers, the HTTP `Date` fallback, time-zone setting, validity rule, the `no_time` state, midnight rollover on the real clock. The main screen now runs on real time with the sample day.
 **Done when.** The clock matches a reference clock to the second; blocking NTP on the router still yields a correct clock; pulling the plug and booting without Wi-Fi shows `no_time`.
+**Outcome.** Spec 005. Three SNTP servers, hourly; every answer passes one validity rule and is written to the board's clock. The HTTP `Date` fallback reads only a header over plain HTTP because certificate dates are now checked (OD5-1). On the panel: network time 0.8–2.9 s after the Wi-Fi connection, the new second on screen 5 ms (median) and 8 ms (p99) after the real second, the fallback within 0.5 s. Because the board's clock is valid (OD3-1), a start without Wi-Fi shows its time rather than `no_time`; `no_time` is shown when no source is valid (`clock invalid` shows it on demand).
 
 ## Slice 6: Real prayer times
 

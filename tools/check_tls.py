@@ -16,6 +16,14 @@ Since the move to plain ESP-IDF (research R8, L4) it also fails on:
   - a file that fills an `esp_http_client_config_t` without `crt_bundle_attach` or `cert_pem`
   - `CONFIG_ESP_TLS_INSECURE=y` or `CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y` in sdkconfig files
 
+Since spec 005 (owner decision OD5-1, research R3) it also fails when:
+
+  - `sdkconfig.defaults` exists and does not set `CONFIG_MBEDTLS_HAVE_TIME_DATE=y` (certificate dates
+    are checked, so HTTPS waits for a valid clock)
+
+and it allows exactly one client without a CA: `src/platform/http_date.cpp`, the plain-HTTP fallback
+that reads only a `Date` header, as long as every URL in it starts with `http://`.
+
 Scanned:  src/, lib/, include/, sim/ (C, C++ and header files), and sdkconfig* in the root.
 Usage:    python tools/check_tls.py [--root DIR]
 Exit:     0 clean, 1 violation(s) found.
@@ -42,6 +50,9 @@ RULES = (
 SDKCONFIG_RULE = re.compile(r"^\s*CONFIG_ESP_TLS_(INSECURE|SKIP_SERVER_CERT_VERIFY)\s*=\s*y", re.MULTILINE)
 CLIENT_CONFIG = re.compile(r"\besp_http_client_config_t\b")
 CA_SET = re.compile(r"\b(crt_bundle_attach|cert_pem)\b")
+TIME_DATE_ON = re.compile(r"^\s*CONFIG_MBEDTLS_HAVE_TIME_DATE\s*=\s*y\s*$", re.MULTILINE)
+PLAIN_HTTP_FILE = "src/platform/http_date.cpp"  # spec 005 R2: the Date-header fallback only
+HTTPS_URL = re.compile(r'"https://')
 
 
 def run(root: Path) -> list[str]:
@@ -60,10 +71,16 @@ def run(root: Path) -> list[str]:
                     if pattern.search(line):
                         violations.append(f"{rel}:{lineno}: {reason}")
             if CLIENT_CONFIG.search(text) and not CA_SET.search(text):
-                violations.append(f"{rel}: esp_http_client_config_t without crt_bundle_attach or cert_pem")
+                if rel != PLAIN_HTTP_FILE:
+                    violations.append(f"{rel}: esp_http_client_config_t without crt_bundle_attach or cert_pem")
+                elif HTTPS_URL.search(text):
+                    violations.append(f"{rel}: the plain-HTTP Date fallback must not name an https:// URL")
     for path in sorted(root.glob("sdkconfig*")):
         if path.is_file() and SDKCONFIG_RULE.search(path.read_text(encoding="utf-8", errors="replace")):
             violations.append(f"{path.name}: ESP-TLS certificate verification turned off")
+    defaults = root / "sdkconfig.defaults"
+    if defaults.is_file() and not TIME_DATE_ON.search(defaults.read_text(encoding="utf-8", errors="replace")):
+        violations.append("sdkconfig.defaults: CONFIG_MBEDTLS_HAVE_TIME_DATE=y missing (certificate dates, OD5-1)")
     return violations
 
 

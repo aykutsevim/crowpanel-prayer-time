@@ -19,7 +19,13 @@ uint32_t now_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 
 }  // namespace
 
-Result probe() {
+Result probe(bool time_valid) {
+    if (!time_valid) {
+        Result r;
+        r.status = -1;
+        std::snprintf(r.reason, sizeof r.reason, "time not valid");
+        return r;
+    }
     Result r;
     const uint32_t start = now_ms();
     esp_http_client_config_t cfg = {};

@@ -2,6 +2,8 @@
 // specs/003-main-screen/contracts/serial-console.md). Written before the code.
 #include <unity.h>
 
+#include <cstring>
+
 #include "nvp/diag/command.h"
 
 using nvp::diag::Command;
@@ -79,7 +81,34 @@ static void test_invalid_arguments() {
     expect_cmd("clock sim tomorrow", Command::InvalidArgument);
 }
 
+static void test_time_commands() {  // spec 005 contracts/serial-console.md
+    expect_cmd("tz", Command::TzGet);
+    expect_cmd("time sync", Command::TimeSync);
+    expect_cmd("NTP off", Command::NtpOff);
+    expect_cmd("ntp on", Command::NtpOn);
+    expect_cmd("clock invalid", Command::ClockInvalid);
+    ParsedCommand p = parse_command_line("tz CET-1CEST,M3.5.0,M10.5.0/3");
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Command::TzSet), static_cast<int>(p.command));
+    TEST_ASSERT_EQUAL_STRING("CET-1CEST,M3.5.0,M10.5.0/3", p.text);  // case kept: the zone is case-sensitive
+    p = parse_command_line("  tz   <+03>-3  ");
+    TEST_ASSERT_EQUAL_STRING("<+03>-3", p.text);
+    p = parse_command_line("time jitter 600");
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Command::TimeJitter), static_cast<int>(p.command));
+    TEST_ASSERT_EQUAL_INT(600, p.number);
+    TEST_ASSERT_EQUAL_INT(10, parse_command_line("time jitter 10").number);
+    TEST_ASSERT_EQUAL_INT(3600, parse_command_line("time jitter 3600").number);
+    expect_cmd("time jitter 9", Command::InvalidArgument);
+    expect_cmd("time jitter 3601", Command::InvalidArgument);
+    expect_cmd("time jitter", Command::InvalidArgument);
+    char long_zone[80];
+    std::memset(long_zone, 'A', sizeof long_zone);
+    std::memcpy(long_zone, "tz ", 3);
+    long_zone[79] = '\0';
+    expect_cmd(long_zone, Command::InvalidArgument);  // over 63 bytes
+}
+
 void run_command_args_tests() {
+    RUN_TEST(test_time_commands);
     RUN_TEST(test_plain_commands_still_parse);
     RUN_TEST(test_time_set);
     RUN_TEST(test_clock_sim_and_speed);

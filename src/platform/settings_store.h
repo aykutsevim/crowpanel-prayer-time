@@ -3,6 +3,8 @@
 // beside Slice 1's "wifi" and "ap". Call only from the network worker. Nothing here logs a PIN.
 #pragma once
 
+#include <cstddef>
+
 #include "nvp/net/places.h"
 
 namespace platform::settings {
@@ -12,5 +14,10 @@ bool store_location(const nvp::net::Location& loc);  // committed before the Wi-
 // Generates and stores the 6-digit PIN on the first start of this firmware; later calls keep it.
 // The PIN itself is not returned: it is shown only from Slice 8.
 bool ensure_pin();
+
+// The time-zone setting (spec 005 FR-012, TIME-04): NVS "set"/"tz", a POSIX string up to 63 bytes.
+// load_tz returns false (and leaves `out` empty) when none is stored; the caller uses the default.
+bool load_tz(char* out, size_t cap);
+bool store_tz(const char* tz);
 
 }  // namespace platform::settings

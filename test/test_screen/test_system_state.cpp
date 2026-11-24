@@ -84,6 +84,15 @@ static void test_forced_state_overrides() {
     expect(SystemState::Offline, in);
 }
 
+static void test_real_inputs_of_spec_005() {  // FR-007: the device's inputs until Slice 6
+    StateInputs in;  // defaults: no data, no failure, Wi-Fi not down
+    in.clock_valid = false;
+    in.today_present = false;
+    expect(SystemState::NoTime, in);
+    in.clock_valid = true;
+    expect(SystemState::NoData, in);
+}
+
 static void test_names() {
     TEST_ASSERT_EQUAL_STRING("no_time", state_name(SystemState::NoTime));
     TEST_ASSERT_EQUAL_STRING("cache_ending", state_name(SystemState::CacheEnding));
@@ -100,5 +109,6 @@ void run_system_state_tests() {
     RUN_TEST(test_cache_ending_needs_failure);
     RUN_TEST(test_first_match_wins);
     RUN_TEST(test_forced_state_overrides);
+    RUN_TEST(test_real_inputs_of_spec_005);
     RUN_TEST(test_names);
 }

@@ -81,6 +81,22 @@ static void test_clock_and_screen_lines() {  // spec 003 contracts/serial-consol
         std::strstr(buf, "\nclock: rtc 2026-11-24 12:30:05 local, valid\nscreen: main (state no_data)\n=== END ===\n"));
 }
 
+static void test_time_line() {  // spec 005 FR-015, contracts/serial-console.md
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.clock_line = "rtc 2026-11-24 14:41:17 local, valid";
+    in.time_line = "valid, source ntp, last sync 12 min ago, correction -0.184 s, zone <+03>-3";
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(buf, "\nclock: rtc 2026-11-24 14:41:17 local, valid\ntime: valid, source ntp, "
+                                          "last sync 12 min ago, correction -0.184 s, zone <+03>-3\n"));
+    in.time_line = "not valid (waiting for network), zone <+03>-3";
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(buf, "\ntime: not valid (waiting for network), zone <+03>-3\n"));
+    in.time_line = nullptr;
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NULL(std::strstr(buf, "\ntime: "));
+}
+
 static void test_mode_and_location_lines() {  // spec 004 contracts/serial-console.md, FR-024
     char buf[1024];
     ReportInput in = stage1_input();
@@ -332,6 +348,7 @@ void run_selftest_report_tests() {
     RUN_TEST(test_report_has_contract_keys_in_order);
     RUN_TEST(test_clock_and_screen_lines);
     RUN_TEST(test_mode_and_location_lines);
+    RUN_TEST(test_time_line);
     RUN_TEST(test_failed_and_skipped_carry_reasons);
     RUN_TEST(test_skipped_without_reason_still_says_why_missing);
     RUN_TEST(test_reason_is_truncated_and_ascii);
