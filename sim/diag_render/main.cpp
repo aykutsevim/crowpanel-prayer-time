@@ -3,13 +3,14 @@
 // Renders view-model fixtures of the boot and diagnostic screens to out/snapshots/*.png with
 // LVGL's test display (800x480) and screenshot writer, so the implementer can check them
 // before the owner looks at the panel (CLAUDE.md, "You cannot see the panel").
-// Fixtures: contracts/diag-screens.md, "Snapshot fixtures". Settings fixtures arrive in Stage 3.
+// Fixtures: contracts/diag-screens.md, "Snapshot fixtures".
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
 
 #include "diag/boot_screen.h"
 #include "diag/diag_screen.h"
+#include "diag/settings_screen.h"
 #include "diag/view_model.h"
 #include "lvgl.h"
 #include "nvp/version.h"
@@ -117,6 +118,34 @@ int main() {
     touch.corners[2] = CornerResult{CornerState::Failed, 14, 3};
     diag_screen_update(touch);
     failures += !snapshot("diag_touch");
+
+    lv_obj_t* settings = settings_screen_create(DiagActions{});
+    lv_screen_load(settings);
+
+    DiagViewModel none = base();
+    none.screen = ActiveScreen::Settings;
+    none.wifi.kind = nvp::diag::WifiKind::NotSetUp;
+    settings_screen_update(none);
+    failures += !snapshot("settings_none");
+
+    DiagViewModel confirm = base();
+    confirm.screen = ActiveScreen::Settings;
+    confirm.wifi.kind = nvp::diag::WifiKind::Connected;
+    std::snprintf(confirm.wifi.ssid, sizeof confirm.wifi.ssid, "EvAgi");
+    confirm.confirm = Confirm::Forget;
+    settings_screen_update(confirm);
+    failures += !snapshot("settings_confirm");
+
+    DiagViewModel hotspot = base();
+    hotspot.screen = ActiveScreen::Settings;
+    hotspot.wifi.kind = nvp::diag::WifiKind::Hotspot;
+    std::snprintf(hotspot.wifi.ap_ssid, sizeof hotspot.wifi.ap_ssid, "NamazVakti-1A2B");
+    std::snprintf(hotspot.wifi.ap_address, sizeof hotspot.wifi.ap_address, "192.168.4.1");
+    hotspot.hotspot_open = true;
+    std::snprintf(hotspot.hotspot_password, sizeof hotspot.hotspot_password, "12345678");  // fixture value
+    std::snprintf(hotspot.setup_message, sizeof hotspot.setup_message, "Connecting to EvAgi...");
+    settings_screen_update(hotspot);
+    failures += !snapshot("settings_hotspot");
 
     lv_deinit();
     if (failures > 0) {

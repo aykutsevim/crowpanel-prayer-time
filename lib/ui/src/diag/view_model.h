@@ -46,13 +46,26 @@ struct DiagViewModel {
     bool heartbeat = false;  // toggles once per second
     ActiveScreen screen = ActiveScreen::Boot;
     Confirm confirm = Confirm::None;
-    char status[48] = {};  // short message, for example "Stress: not in this stage"
+    char status[48] = {};  // short message, for example "Refused: silence not acknowledged"
+
+    // Settings screen (Stage 3). The hotspot password is shown on the device screen only; it is
+    // never logged, printed or served (FR-020, FR-024).
+    bool hotspot_open = false;
+    char hotspot_password[9] = {};
+    char setup_message[64] = {};  // "Connecting to <ssid>...", "Connection failed", ...
 };
 
 // Actions the screens report back to the app. Called from the LVGL task.
 struct DiagActions {
     void (*stress_toggle)(void* ctx) = nullptr;
     void (*open_settings)(void* ctx) = nullptr;
+    // Settings screen: requests open a confirmation; the app acts on Yes (FR-019a).
+    void (*request_setup)(void* ctx) = nullptr;
+    void (*request_forget)(void* ctx) = nullptr;
+    void (*confirm_yes)(void* ctx) = nullptr;
+    void (*confirm_no)(void* ctx) = nullptr;
+    void (*cancel_setup)(void* ctx) = nullptr;  // acts at once
+    void (*back)(void* ctx) = nullptr;
     void* ctx = nullptr;
 };
 
