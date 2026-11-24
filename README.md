@@ -65,11 +65,15 @@ Git, Python 3.11+, `uv`, PlatformIO Core 6.2+, the Spec Kit CLI (`specify`) 1.0.
 | Host-only check (no firmware build) | `python tools/check.py --skip-firmware` |
 | Host unit tests | `pio test -e native` |
 | Build firmware | `pio run -e crowpanel7_advance` |
-| Flash | `pio run -e crowpanel7_advance -t upload` |
+| Flash | `pio run -e crowpanel7_advance -t upload --upload-port <panel's port>` (always name the port: with another Espressif USB device attached, PlatformIO's automatic choice can be the wrong board) |
 | Serial monitor | `pio device monitor -b 115200` |
-| Render the screens (diagnostic, and main-screen fixtures 01–14) | `pio run -e sim -t exec` |
-| Compare the main screen with the references | `python tools/compare_reference.py` (images in `out/compare/`) |
+| Render the screens (diagnostic, fixtures 01–17) | `pio run -e sim -t exec` |
+| Compare the screens with the references | `python tools/compare_reference.py` (images in `out/compare/`) |
 | Regenerate the fonts | `python assets/fonts/gen_fonts.py` (needs Node.js) |
+| Setup page tests | `node --test data/portal/test/logic.test.js` |
+| Build the setup page into the firmware (also runs before every firmware build) | `python tools/gen_web.py` |
+| Regenerate the place list (about 8 minutes, one request per 3.1 s) | `python tools/gen_places.py` |
+| Search a saved serial log for secrets | `python tools/scan_log_secrets.py <log>` |
 | Print the engine's output table | `pio run -e engine_table`, then `python tools/check_engine_table.py` |
 
 `check` runs the tool tests, the silence check, the TLS check, the host tests, the engine table check and the firmware build. It then prints the image size against the 2.9 MiB budget, the size of the diagnostic mode, checks the linked image for audio drivers, and runs the host UI harness. The silence check also runs before every PlatformIO build and test run.
@@ -85,13 +89,13 @@ If the PlatformIO IDE rewrites `.gitignore` with its own template, restore it wi
   | `help` | list the commands |
   | `report` | print the report: silence, self-tests, Wi-Fi, memory, stress counters, reset reason |
   | `stress on`, `stress off` | start or stop stress mode (Wi-Fi scan and 4 kB write every 10 s, HTTPS every 30 s) |
-  | `wifi setup`, `wifi cancel`, `wifi forget` | open the setup hotspot, close it, or erase the stored Wi-Fi details |
+  | `wifi setup`, `wifi cancel`, `wifi forget` | show the setup screen and open the device's network; leave setup again (needs stored Wi-Fi and location); erase the Wi-Fi details only, then setup (spec 004) |
   | `diag` | show the diagnostic screen |
   | `test write`, `test scan`, `test https`, `test mix` | one diagnostic operation, logged with its duration |
   | `main` | from the diagnostic screen back to the main screen |
   | `time get`, `time set YYYY-MM-DD HH:MM:SS` | read or set the board's clock (local time; development builds) |
   | `clock rtc`, `clock sim …`, `clock speed N`, `clock pause`, `clock run` | real or simulated time (development builds) |
-  | `state …`, `fixture 1..14`, `fixture off` | force a screen state, show a reference fixture (development builds) |
+  | `state …`, `fixture 1..17`, `fixture off` | force a screen state, show a reference fixture (development builds) |
 
   There is deliberately no backlight command. Passwords are never printed.
 - **Hidden diagnostics**: the device starts on the main screen; hold two fingers on it for 5 seconds (or send `diag`) to open the diagnostic screen.
