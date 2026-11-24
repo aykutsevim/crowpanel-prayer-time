@@ -3,10 +3,15 @@
 #include <cstdio>
 #include <cstring>
 
+#include "generated/web_assets.h"
 #include "nvp/diag/backoff.h"
-#include "nvp/diag/portal_json.h"
+#include "nvp/net/portal_json.h"
+#include "nvp/net/scan.h"
+#include "nvp/net/submission.h"
 #include "platform/console_io.h"
+#include "platform/dns_responder.h"
 #include "platform/https_probe.h"
+#include "platform/settings_store.h"
 #include "platform/setup_portal.h"
 #include "platform/storage.h"
 #include "platform/sysinfo.h"
@@ -16,22 +21,24 @@
 namespace app::net {
 namespace {
 
-using nvp::diag::WifiEvent;
-using nvp::diag::WifiState;
+using nvp::net::Event;
+using nvp::net::FailureClass;
+using nvp::net::Mode;
 namespace wifi = platform::wifi;
 
-constexpr int kCore = 0;                 // network work on core 0, display on core 1 (research R8)
+constexpr int kCore = 0;                 // network work on core 0, display on core 1 (spec 001 R8)
 constexpr uint32_t kStackBytes = 12288;  // TLS needs a deep stack
 constexpr uint32_t kTickMs = 20;
 constexpr uint32_t kJoinTimeoutMs = 20000;  // MODE-04
-constexpr uint32_t kGraceMs = 5000;         // contracts/setup-portal.md
-constexpr uint32_t kPortalScanMs = 15000;
+constexpr uint32_t kTryDelayMs = 1000;      // after the 202, before the channel may change (R2)
+constexpr uint32_t kRetryGapMs = 1000;      // between connection tries inside the 20 s window
+constexpr uint32_t kGraceMs = 5000;         // MODE-04
 
 // --- Requests and the published snapshot: shared between the cores, under g_lock ---
 platform::tasks::Lock* g_lock = nullptr;
 bool g_req_setup = false;
 bool g_req_cancel = false;
-bool g_req_forget = false;
+bool g_req_start_over = false;
 bool g_stress_on = false;  // desired; the worker starts and stops the run
 bool g_req_test_write = false;
 bool g_req_test_scan = false;
@@ -41,33 +48,36 @@ Snapshot g_pub;
 
 // --- Worker-only state (core 0) ---
 bool g_silence_ok = false;
-WifiState g_state = WifiState::Idle;
-WifiState g_previous = WifiState::Idle;
+Mode g_mode = Mode::Start;
 nvp::diag::Backoff g_backoff;
-bool g_has_stored = false;
+bool g_has_wifi = false;
+bool g_has_location = false;
 char g_ssid[33] = {};
-char g_pass[64] = {};  // never logged, printed or served (FR-024)
-bool g_submitted = false;
-char g_sub_ssid[33] = {};
-char g_sub_pass[64] = {};
-bool g_last_try_failed = false;
-uint32_t g_join_start = 0, g_backoff_until = 0, g_try_start = 0, g_grace_until = 0;
+char g_pass[64] = {};  // never logged, printed or served (FR-023)
+nvp::net::Location g_location;
+nvp::net::Submission g_sub;  // the attempt's details; wiped when it ends
+char g_attempt_ssid[33] = {};
+FailureClass g_failure = FailureClass::None;
+uint16_t g_reasons[16] = {};
+size_t g_reason_count = 0;
+uint32_t g_join_start = 0, g_backoff_until = 0, g_try_at = 0, g_try_start = 0, g_retry_at = 0, g_grace_until = 0;
+bool g_trying = false;
+bool g_pending_ap = false;  // start the device's network when the first scan finishes (R3)
+uint8_t g_phones = 0;
 char g_ap_ssid[33] = {};
 char g_ap_pass[9] = {};
 char g_message[64] = {};
 bool g_scan_done_once = false;
-// Scan cache for the setup page.
-nvp::diag::ScanEntry g_scan[32];
+nvp::net::ScanEntry g_scan[nvp::net::kMaxScanEntries + 20];
 size_t g_scan_count = 0;
-uint32_t g_last_portal_scan = 0;
-enum class ScanOwner { None, Portal, Stress, Test } g_scan_owner = ScanOwner::None;
+enum class ScanOwner { None, Setup, Stress, Test } g_scan_owner = ScanOwner::None;
 // Stress.
 bool g_stress_running = false, g_stress_paused = false, g_stress_has_run = false;
 nvp::diag::StressSchedule g_schedule;
 nvp::diag::StressCounters g_counters;
 uint32_t g_scratch_counter = 0;
-// A flash write started while a Wi-Fi scan runs garbles the panel; a write alone only flickers
-// once (stack decision log, 2026-11-23, `test mix`). Stress writes therefore wait for the scan.
+// A flash write started while a Wi-Fi scan runs garbled the panel on the Arduino build; the rule is
+// kept (spec 004 FR-018). Stress writes therefore wait for the scan.
 bool g_write_pending = false;
 
 uint32_t now() { return platform::sysinfo::uptime_ms(); }
@@ -80,211 +90,325 @@ void set_message(const char* fmt, const char* arg = "") {
     std::snprintf(g_message, sizeof g_message, fmt, arg);
 }
 
-void clear_submitted() {
-    g_submitted = false;
-    std::memset(g_sub_ssid, 0, sizeof g_sub_ssid);
-    std::memset(g_sub_pass, 0, sizeof g_sub_pass);
+nvp::net::Context context() {
+    nvp::net::Context c;
+    c.silence_ok = g_silence_ok;
+    c.has_wifi = g_has_wifi;
+    c.has_location = g_has_location;
+    return c;
 }
 
-void apply(WifiEvent event) {
-    const WifiState before = g_state;
-    nvp::diag::WifiContext ctx;
-    ctx.silence_ok = g_silence_ok;
-    ctx.has_stored = g_has_stored;
-    const nvp::diag::WifiStep step = nvp::diag::wifi_step(g_state, g_previous, event, ctx);
-    const nvp::diag::WifiAction a = step.action;
-    char line[96];
+bool seen_in_scan(const char* ssid) {
+    for (size_t i = 0; i < g_scan_count; ++i) {
+        if (std::strcmp(g_scan[i].ssid, ssid) == 0) return true;
+    }
+    return false;
+}
 
-    if (a & nvp::diag::kActRefused) {
-        set_message("Refused: silence step not acknowledged");
-        log("wifi: refused, silence step not acknowledged");
+bool wait_for_scan() {  // FR-018: no storage write while a scan runs
+    if (!wifi::scan_running()) return true;
+    wifi::scan_stop();
+    g_scan_owner = ScanOwner::None;
+    return !wifi::scan_running();
+}
+
+void start_ap();
+void stop_ap();
+
+// Applies one event through the mode machine and performs its actions in flag order.
+nvp::net::Action apply(Event event) {
+    const Mode before = g_mode;
+    const nvp::net::Step step = nvp::net::mode_step(g_mode, event, context());
+    const nvp::net::Action a = step.action;
+    char line[112];
+
+    if (a & nvp::net::kActRefused) {
+        log(g_silence_ok ? "wifi: refused" : "wifi: refused, silence step not acknowledged");
+        set_message("Refused");
     }
-    if (a & nvp::diag::kActResetBackoff) g_backoff.reset();
-    if (a & nvp::diag::kActStopAp) {
-        platform::portal::stop();
-        wifi::stop_hotspot();
-        g_grace_until = 0;
-        log("wifi: hotspot closed");
-    }
-    if (a & nvp::diag::kActDiscardSubmitted) {
-        if (event == WifiEvent::TryFail) {
-            g_last_try_failed = true;
-            set_message("Connection failed");
-            log("wifi: connection failed; details discarded");
-            wifi::disconnect();
-        }
-        clear_submitted();
-    }
-    if (a & nvp::diag::kActEraseStored) {
+    if (a & nvp::net::kActEraseWifi) {
+        wait_for_scan();
         wifi::erase_stored();
-        g_has_stored = false;
+        g_has_wifi = false;
         std::memset(g_ssid, 0, sizeof g_ssid);
         std::memset(g_pass, 0, sizeof g_pass);
-        set_message("Wi-Fi details forgotten");
-        log("wifi: stored details erased");
+        log("wifi: stored Wi-Fi details erased; location kept (MODE-06)");
     }
-    if (a & nvp::diag::kActDisconnect) wifi::disconnect();
-    if (a & nvp::diag::kActStartAp) {
-        g_previous = before;
+    if (a & nvp::net::kActDisconnect) {
+        g_trying = false;
         wifi::disconnect();
-        wifi::hotspot_ssid(g_ap_ssid);
-        wifi::hotspot_password(g_ap_pass);
-        if (wifi::start_hotspot(g_ap_ssid, g_ap_pass)) {
-            platform::portal::Callbacks cb;
-            cb.submit = [](const char* ssid, const char* pass) {
-                if (g_state != WifiState::SetupAP || !nvp::diag::valid_credentials(ssid, pass)) return false;
-                std::snprintf(g_sub_ssid, sizeof g_sub_ssid, "%s", ssid);
-                std::snprintf(g_sub_pass, sizeof g_sub_pass, "%s", pass);
-                g_submitted = true;
-                return true;
-            };
-            cb.status_json = [](char* out, size_t cap) {
-                nvp::diag::PortalState s = nvp::diag::PortalState::Setup;
-                if (g_state == WifiState::Trying) s = nvp::diag::PortalState::Trying;
-                else if (g_state == WifiState::Connected) s = nvp::diag::PortalState::Connected;
-                else if (g_last_try_failed) s = nvp::diag::PortalState::Failed;
-                const char* ssid = g_state == WifiState::Connected ? g_ssid : g_sub_ssid;
-                nvp::diag::build_status_json(s, ssid, out, cap);
-            };
-            cb.scan_json = [](char* out, size_t cap) {
-                nvp::diag::ScanEntry copy[32];
-                std::memcpy(copy, g_scan, sizeof copy);
-                nvp::diag::build_scan_json(copy, g_scan_count, out, cap);
-            };
-            platform::portal::start(cb);
-            g_last_portal_scan = 0;
-            g_last_try_failed = false;
-            set_message("Waiting for details from the phone");
-            std::snprintf(line, sizeof line, "wifi: hotspot %s open at %s", g_ap_ssid, wifi::hotspot_address());
-            log(line);  // name and address only, never the password (FR-024)
-        } else {
-            set_message("Hotspot failed to start");
-            log("wifi: hotspot failed to start");
+    }
+    if (a & nvp::net::kActDiscardSubmitted) {
+        nvp::net::wipe(g_sub);
+        g_trying = false;
+    }
+    if (a & nvp::net::kActScan) {
+        if (!wifi::scan_running() && wifi::scan_start(false)) {
+            g_scan_owner = ScanOwner::Setup;
+            if (a & nvp::net::kActStartAp) g_pending_ap = true;  // the network starts after the scan
         }
     }
-    if (a & nvp::diag::kActTrySubmitted) {
-        g_last_try_failed = false;
-        wifi::disconnect();
-        wifi::join(g_sub_ssid, g_sub_pass);
+    if ((a & nvp::net::kActStartAp) && !g_pending_ap) start_ap();
+    if (a & nvp::net::kActStopAp) stop_ap();
+    if (a & nvp::net::kActScheduleTry) {
+        g_failure = FailureClass::None;  // the footer's failure lasts until the next attempt (FR-005)
+        g_try_at = now() + kTryDelayMs;
+        std::snprintf(g_attempt_ssid, sizeof g_attempt_ssid, "%s", g_sub.ssid);
+        std::snprintf(line, sizeof line, "mode: connecting \"%s\"", g_sub.ssid);
+        log(line);
+    }
+    if (a & nvp::net::kActStartTry) {
+        wait_for_scan();
+        uint16_t drop[16];
+        wifi::take_reasons(drop, 16);  // reasons from before this attempt do not count
+        g_reason_count = 0;
+        wifi::join(g_sub.ssid, g_sub.pass);
         g_try_start = now();
-        set_message("Connecting to %s...", g_sub_ssid);
-        std::snprintf(line, sizeof line, "wifi: trying %s", g_sub_ssid);
-        log(line);
+        g_trying = true;
+        g_retry_at = 0;
     }
-    if (a & nvp::diag::kActStoreSubmitted) {
-        if (wifi::store(g_sub_ssid, g_sub_pass)) {
-            std::snprintf(g_ssid, sizeof g_ssid, "%s", g_sub_ssid);
-            std::snprintf(g_pass, sizeof g_pass, "%s", g_sub_pass);
-            g_has_stored = true;
-            set_message("Connected to %s", g_ssid);
-            std::snprintf(line, sizeof line, "wifi: connected to %s; details stored", g_ssid);
+    if (a & nvp::net::kActStoreSubmitted) {
+        wait_for_scan();
+        const bool loc_ok = platform::settings::store_location(g_sub.location);  // location first (R10)
+        const bool wifi_ok = loc_ok && wifi::store(g_sub.ssid, g_sub.pass);
+        char ip[16];
+        wifi::station_ip(ip);
+        if (wifi_ok) {
+            g_location = g_sub.location;
+            g_has_location = true;
+            std::snprintf(g_ssid, sizeof g_ssid, "%s", g_sub.ssid);
+            std::snprintf(g_pass, sizeof g_pass, "%s", g_sub.pass);
+            g_has_wifi = true;
+            std::snprintf(line, sizeof line, "attempt: ok %s; stored wifi + location %lu", ip,
+                          static_cast<unsigned long>(g_location.district_id));
         } else {
-            set_message("Connected, but the details could not be stored");
-            std::snprintf(line, sizeof line, "wifi: connected to %s; storing failed", g_sub_ssid);
+            std::snprintf(line, sizeof line, "attempt: ok %s; storing failed", ip);
         }
         log(line);
-        clear_submitted();
+        nvp::net::wipe(g_sub);
+        g_trying = false;
     }
-    if (a & nvp::diag::kActStopApAfterGrace) g_grace_until = now() + kGraceMs;
-    if (a & nvp::diag::kActStartJoin) {
+    if (a & nvp::net::kActStartGrace) g_grace_until = now() + kGraceMs;
+    if (a & nvp::net::kActResetBackoff) g_backoff.reset();
+    if (a & nvp::net::kActStartJoin) {
         wifi::join(g_ssid, g_pass);
         g_join_start = now();
         std::snprintf(line, sizeof line, "wifi: joining %s", g_ssid);
         log(line);
     }
-    if (a & nvp::diag::kActStartBackoff) {
+    if (a & nvp::net::kActStartBackoff) {
         const uint32_t d = g_backoff.next_delay_ms();
         g_backoff_until = now() + d;
         wifi::disconnect();
-        std::snprintf(line, sizeof line, "wifi: not connected; retry in %lu s", static_cast<unsigned long>(d / 1000));
+        std::snprintf(line, sizeof line, "wifi: not connected, retry in %lu s", static_cast<unsigned long>(d / 1000));
         log(line);
     }
-    if (event == WifiEvent::JoinOk) {
-        std::snprintf(line, sizeof line, "wifi: connected to %s", g_ssid);
+    if (event == Event::JoinOk) {
+        std::snprintf(line, sizeof line, "wifi: connected %s", g_ssid);
         log(line);
-        g_message[0] = '\0';
     }
-    g_state = step.next;
+    g_mode = step.next;
+    if (g_mode != before && nvp::net::mode_name(g_mode) != nvp::net::mode_name(before)) {
+        const char* why = "";
+        if (g_mode == Mode::Setup && before == Mode::Start) why = !g_has_location ? " (no location)" : " (no Wi-Fi)";
+        std::snprintf(line, sizeof line, "mode: %s%s", nvp::net::mode_name(g_mode), why);
+        log(line);
+    }
+    return a;
+}
+
+// --- Portal callbacks: they run only inside platform::portal::handle(), on this task ---
+
+int on_submit(const char* body, size_t len, char* out, size_t cap) {
+    nvp::net::Submission s;
+    nvp::net::SubmitError e = nvp::net::parse_submission(body, len, s);
+    if (e == nvp::net::SubmitError::Ok &&
+        !nvp::net::place_lookup(generated::places_json, generated::places_json_len, s.location.district_id,
+                                s.location.province, s.location.district)) {
+        e = nvp::net::SubmitError::Location;
+    }
+    nvp::net::Action a;
+    if (e == nvp::net::SubmitError::Ok) {
+        if (g_mode == Mode::Setup) g_sub = s;  // only a new attempt takes the details
+        a = apply(Event::SubmitValid);
+    } else {
+        a = apply(Event::SubmitInvalid);
+    }
+    nvp::net::wipe(s);
+    if (a & nvp::net::kActAnswer202) {
+        std::snprintf(out, cap, "{\"accepted\":true}");
+        return 202;
+    }
+    if (a & nvp::net::kActAnswer400) {
+        std::snprintf(out, cap, "{\"error\":\"%s\"}", nvp::net::submit_error_name(e));
+        return 400;
+    }
+    std::snprintf(out, cap, "{\"error\":\"busy\"}");
+    return 409;
+}
+
+void on_status(char* out, size_t cap) {
+    const char* mode = g_mode == Mode::Connecting ? "connecting" : g_mode == Mode::Grace ? "connected" : "setup";
+    nvp::net::status_json(mode, nvp::net::failure_name(g_failure), g_attempt_ssid,
+                          g_has_location ? &g_location : nullptr, out, cap);
+}
+
+void on_scan(bool refresh, char* out, size_t cap) {
+    if (refresh && g_mode == Mode::Setup && !wifi::scan_running() && wifi::scan_start(true)) {
+        g_scan_owner = ScanOwner::Setup;
+        log("portal: rescan (grouped)");
+    }
+    nvp::net::scan_json(g_scan, g_scan_count, wifi::scan_running(), out, cap);
+}
+
+void start_ap() {
+    g_pending_ap = false;
+    wifi::hotspot_ssid(g_ap_ssid);
+    wifi::hotspot_password(g_ap_pass);
+    if (!wifi::start_hotspot(g_ap_ssid, g_ap_pass)) {
+        log("wifi: device network failed to start");
+        return;
+    }
+    platform::portal::Callbacks cb;
+    cb.submit = on_submit;
+    cb.status_json = on_status;
+    cb.scan_json = on_scan;
+    platform::portal::start(cb);
+    const bool dns = platform::dns::start();
+    g_phones = 0;
+    char line[96];
+    std::snprintf(line, sizeof line, "wifi: device network %s open at %s%s", g_ap_ssid, wifi::hotspot_address(),
+                  dns ? "" : " (DNS failed)");
+    log(line);  // name and address only, never the password (FR-023)
+}
+
+void stop_ap() {
+    platform::portal::stop();
+    platform::dns::stop();
+    wifi::stop_hotspot();
+    g_pending_ap = false;
+    g_grace_until = 0;
+    g_phones = 0;
+    log("wifi: device network closed");
+}
+
+void drive_attempt() {
+    if (!g_trying) return;
+    const uint32_t t = now();
+    g_reason_count += wifi::take_reasons(g_reasons + g_reason_count, 16 - g_reason_count);
+    const wifi::Link l = wifi::link();
+    if (l == wifi::Link::Up) {
+        apply(Event::TryOk);
+        return;
+    }
+    const bool timeout = t - g_try_start >= kJoinTimeoutMs;
+    if (l == wifi::Link::Failed || timeout) {
+        const FailureClass c = nvp::net::classify_failure(g_reasons, g_reason_count, seen_in_scan(g_sub.ssid));
+        // A definite answer (twice "wrong password", or "not found") ends the attempt early.
+        const bool definite = g_reason_count >= 2 && c != FailureClass::Other;
+        if (!timeout && !definite) {
+            if (g_retry_at == 0) g_retry_at = t + kRetryGapMs;
+            if (static_cast<int32_t>(t - g_retry_at) >= 0) {
+                g_retry_at = 0;
+                wifi::join(g_sub.ssid, g_sub.pass);
+            }
+            return;
+        }
+        g_failure = c;
+        char line[96];
+        std::snprintf(line, sizeof line, "attempt: failed %s (%u reasons, last %u)", nvp::net::failure_name(c),
+                      static_cast<unsigned>(g_reason_count),
+                      static_cast<unsigned>(g_reason_count ? g_reasons[g_reason_count - 1] : 0));
+        log(line);
+        apply(timeout ? Event::TryTimeout : Event::TryFail);
+    }
 }
 
 void drive_wifi() {
     const uint32_t t = now();
-    switch (g_state) {
-        case WifiState::Joining: {
-            const wifi::Link l = wifi::link();
-            if (l == wifi::Link::Up) apply(WifiEvent::JoinOk);
-            else if (l == wifi::Link::Failed || t - g_join_start > kJoinTimeoutMs) apply(WifiEvent::JoinFail);
+    switch (g_mode) {
+        case Mode::Setup: {
+            const uint8_t p = wifi::hotspot_clients();
+            if (p != g_phones) {
+                const bool joined = p > g_phones;
+                g_phones = p;
+                char line[48];
+                std::snprintf(line, sizeof line, "portal: phone %s (%u)", joined ? "joined" : "left", static_cast<unsigned>(p));
+                log(line);
+                apply(joined ? Event::PhoneJoined : Event::PhoneLeft);
+            }
             break;
         }
-        case WifiState::Connected:
-            if (g_grace_until == 0 && wifi::link() != wifi::Link::Up) apply(WifiEvent::LinkLost);
+        case Mode::Connecting:
+            if (g_try_at != 0 && static_cast<int32_t>(t - g_try_at) >= 0) {
+                g_try_at = 0;
+                apply(Event::TryStart);
+            }
+            drive_attempt();
             break;
-        case WifiState::Backoff:
-            if (static_cast<int32_t>(t - g_backoff_until) >= 0) apply(WifiEvent::BackoffElapsed);
+        case Mode::Grace:
+            if (static_cast<int32_t>(t - g_grace_until) >= 0) apply(Event::GraceElapsed);
             break;
-        case WifiState::SetupAP:
-            if (g_submitted) apply(WifiEvent::Submit);
-            break;
-        case WifiState::Trying: {
+        case Mode::RunJoining: {
             const wifi::Link l = wifi::link();
-            if (l == wifi::Link::Up) apply(WifiEvent::TryOk);
-            else if (l == wifi::Link::Failed || t - g_try_start > kJoinTimeoutMs) apply(WifiEvent::TryFail);
+            if (l == wifi::Link::Up) apply(Event::JoinOk);
+            else if (l == wifi::Link::Failed || t - g_join_start > kJoinTimeoutMs) apply(Event::JoinFail);
             break;
         }
-        case WifiState::Idle: break;
+        case Mode::RunUp:
+            if (wifi::link() != wifi::Link::Up) apply(Event::LinkLost);
+            break;
+        case Mode::RunBackoff:
+            if (static_cast<int32_t>(t - g_backoff_until) >= 0) apply(Event::BackoffElapsed);
+            break;
+        case Mode::Start:
+        case Mode::RunNoRadio:
+            break;
     }
-    if (g_grace_until != 0 && static_cast<int32_t>(t - g_grace_until) >= 0) {
-        platform::portal::stop();
-        wifi::stop_hotspot();
-        g_grace_until = 0;
-        log("wifi: hotspot closed after the grace period");
-    }
+    if (platform::dns::running()) platform::dns::poll();
 }
 
 void drive_scans() {
-    if (g_scan_owner != ScanOwner::None) {
-        const int r = wifi::scan_poll();
-        if (r == -1) return;
-        const bool ok = r >= 0;
-        size_t n = 0;
-        if (ok) {
-            nvp::diag::ScanEntry fresh[32];
-            n = wifi::scan_take(fresh, 32);
-            if (g_scan_owner == ScanOwner::Portal || g_scan_owner == ScanOwner::Stress) {
+    if (g_scan_owner == ScanOwner::None) return;
+    const int r = wifi::scan_poll();
+    if (r == -1) return;
+    const bool ok = r >= 0;
+    size_t n = 0;
+    nvp::net::ScanEntry fresh[sizeof g_scan / sizeof g_scan[0]];
+    if (ok) {
+        n = wifi::scan_take(fresh, sizeof fresh / sizeof fresh[0]);
+        g_scan_done_once = true;
+    }
+    char line[64];
+    switch (g_scan_owner) {
+        case ScanOwner::Setup:
+        case ScanOwner::Stress:
+            if (ok) {
                 std::memcpy(g_scan, fresh, sizeof g_scan);
-                g_scan_count = n;
+                g_scan_count = nvp::net::merge_scan(g_scan, n);
             }
-            g_scan_done_once = true;
-        }
-        if (g_scan_owner == ScanOwner::Test) {
-            char line[64];
-            if (ok) {
-                std::snprintf(line, sizeof line, "test: scan done %u networks", static_cast<unsigned>(n));
+            if (g_scan_owner == ScanOwner::Setup) {
+                std::snprintf(line, sizeof line, "scan: %s, %u networks listed", ok ? "done" : "failed",
+                              static_cast<unsigned>(g_scan_count));
+                log(line);
             } else {
-                std::snprintf(line, sizeof line, "test: scan failed");
+                std::snprintf(line, sizeof line, ok ? "stress: scan done %u networks" : "stress: scan failed",
+                              static_cast<unsigned>(n));
+                log(line);
+                g_counters.record_scan(ok, ok ? nullptr : "scan: failed");
+                g_counters.cycle_done(now());
             }
+            break;
+        case ScanOwner::Test:
+            std::snprintf(line, sizeof line, ok ? "test: scan done %u networks" : "test: scan failed",
+                          static_cast<unsigned>(n));
             log(line);
-        }
-        if (g_scan_owner == ScanOwner::Stress) {
-            char line[64];
-            if (ok) {
-                std::snprintf(line, sizeof line, "stress: scan done %u networks", static_cast<unsigned>(n));
-            } else {
-                std::snprintf(line, sizeof line, "stress: scan failed");
-            }
-            log(line);
-            g_counters.record_scan(ok, ok ? nullptr : "scan: failed");
-            g_counters.cycle_done(now());
-        }
-        g_scan_owner = ScanOwner::None;
-        return;
+            break;
+        case ScanOwner::None:
+            break;
     }
-    // While the hotspot is open, refresh the list for the setup page (not while trying).
-    if (wifi::hotspot_up() && g_state == WifiState::SetupAP &&
-        (g_last_portal_scan == 0 || now() - g_last_portal_scan >= kPortalScanMs)) {
-        g_last_portal_scan = now();
-        if (wifi::scan_start()) g_scan_owner = ScanOwner::Portal;
-    }
+    g_scan_owner = ScanOwner::None;
+    if (g_pending_ap) start_ap();  // the first scan is done: now the device's network (R3)
 }
 
 void drive_stress(bool want) {
@@ -302,15 +426,15 @@ void drive_stress(bool want) {
         log("stress: off");
     }
     if (!g_stress_running) return;
-    const bool connected = g_state == WifiState::Connected && wifi::link() == wifi::Link::Up;
+    const bool connected = g_mode == Mode::RunUp && wifi::link() == wifi::Link::Up;
     const nvp::diag::StressPlan p = g_schedule.next(now(), connected, wifi::hotspot_up());
     if (p.paused != g_stress_paused) {
         g_stress_paused = p.paused;
-        log(p.paused ? "stress: paused, hotspot open" : "stress: resumed");
+        log(p.paused ? "stress: paused, device network open" : "stress: resumed");
     }
     char line[96];
     if (p.scan) {
-        if (g_scan_owner == ScanOwner::None && wifi::scan_start()) {
+        if (g_scan_owner == ScanOwner::None && wifi::scan_start(false)) {
             g_scan_owner = ScanOwner::Stress;
             log("stress: scan start");
         } else {
@@ -345,36 +469,50 @@ void drive_stress(bool want) {
     }
     if (p.https_skip) {
         g_counters.record_https(nvp::diag::HttpsOutcome::Skipped);
-        log(g_has_stored ? "stress: https skipped (not connected)" : "stress: https skipped (no Wi-Fi set up)");
+        log(g_has_wifi ? "stress: https skipped (not connected)" : "stress: https skipped (no Wi-Fi set up)");
     }
 }
 
 void publish() {
     Snapshot s;
-    s.state = g_state;
-    switch (g_state) {
-        case WifiState::Idle:
-            s.line.kind = g_has_stored ? nvp::diag::WifiKind::Off : nvp::diag::WifiKind::NotSetUp;
+    s.mode = g_mode;
+    s.phones = g_phones;
+    s.failure = g_failure;
+    std::snprintf(s.ap_ssid, sizeof s.ap_ssid, "%s", g_ap_ssid);
+    std::snprintf(s.attempt_ssid, sizeof s.attempt_ssid, "%s", g_attempt_ssid);
+    s.has_location = g_has_location;
+    s.location = g_location;
+    s.wifi_up = g_mode == Mode::RunUp && wifi::link() == wifi::Link::Up;
+    std::snprintf(s.ssid, sizeof s.ssid, "%s", g_ssid);
+    if (s.wifi_up) {
+        s.rssi = wifi::rssi();
+        wifi::station_ip(s.ip);
+    }
+    switch (g_mode) {
+        case Mode::Start:
+        case Mode::RunNoRadio:
+            s.line.kind = g_has_wifi ? nvp::diag::WifiKind::Off : nvp::diag::WifiKind::NotSetUp;
             break;
-        case WifiState::Joining:
-        case WifiState::Backoff:
+        case Mode::RunJoining:
+        case Mode::RunBackoff:
             s.line.kind = nvp::diag::WifiKind::Joining;
             std::snprintf(s.line.ssid, sizeof s.line.ssid, "%s", g_ssid);
             break;
-        case WifiState::Connected:
+        case Mode::RunUp:
             s.line.kind = nvp::diag::WifiKind::Connected;
             std::snprintf(s.line.ssid, sizeof s.line.ssid, "%s", g_ssid);
-            s.line.rssi_dbm = wifi::rssi();
+            s.line.rssi_dbm = s.rssi;
             break;
-        case WifiState::SetupAP:
-        case WifiState::Trying:
+        case Mode::Setup:
+        case Mode::Connecting:
+        case Mode::Grace:
             s.line.kind = nvp::diag::WifiKind::Hotspot;
             break;
     }
     std::snprintf(s.line.ap_ssid, sizeof s.line.ap_ssid, "%s", g_ap_ssid);
     std::snprintf(s.line.ap_address, sizeof s.line.ap_address, "%s", wifi::hotspot_address());
     s.hotspot_open = wifi::hotspot_up();
-    if (s.hotspot_open) std::snprintf(s.hotspot_password, sizeof s.hotspot_password, "%s", g_ap_pass);
+    if (s.hotspot_open || g_pending_ap) std::snprintf(s.hotspot_password, sizeof s.hotspot_password, "%s", g_ap_pass);
     std::snprintf(s.setup_message, sizeof s.setup_message, "%s", g_message);
     s.scan_completed = g_scan_done_once;
     if (g_stress_running) g_counters.update_elapsed(now());
@@ -387,33 +525,39 @@ void publish() {
 }
 
 void worker(void*) {
-    g_has_stored = wifi::load_stored(g_ssid, g_pass);
-    apply(WifiEvent::Boot);  // joins in the background if details are stored and silence passed
+    // Secrets first, before any scan can run (analysis U2, FR-018): the access-point password and
+    // the settings PIN are generated once and kept.
+    g_has_wifi = wifi::load_stored(g_ssid, g_pass);  // also opens NVS
+    platform::settings::ensure_pin();
+    wifi::hotspot_ssid(g_ap_ssid);
+    wifi::hotspot_password(g_ap_pass);
+    g_has_location = platform::settings::load_location(g_location);
+    apply(Event::Boot);
     for (;;) {
-        bool setup = false, cancel = false, forget = false, stress = false, t_write = false, t_scan = false;
-        bool t_https = false, t_mix = false;
+        bool setup = false, cancel = false, start_over = false, stress = false, t_write = false;
+        bool t_scan = false, t_https = false, t_mix = false;
         {
             platform::tasks::Guard guard(*g_lock);
             setup = g_req_setup;
             cancel = g_req_cancel;
-            forget = g_req_forget;
+            start_over = g_req_start_over;
             stress = g_stress_on;
             t_write = g_req_test_write;
             t_scan = g_req_test_scan;
             t_https = g_req_test_https;
             t_mix = g_req_test_mix;
-            g_req_setup = g_req_cancel = g_req_forget = g_req_test_write = g_req_test_scan = false;
+            g_req_setup = g_req_cancel = g_req_start_over = g_req_test_write = g_req_test_scan = false;
             g_req_test_https = g_req_test_mix = false;
         }
-        if (setup) apply(WifiEvent::SetupConfirmed);
-        if (cancel) apply(WifiEvent::Cancel);
-        if (forget) apply(WifiEvent::Forget);
+        if (setup) apply(Event::DevSetup);
+        if (cancel) apply(Event::DevCancel);
+        if (start_over) apply(Event::StartOver);
         if (t_mix) {  // the order of one stress cycle: scan start, then the write
             t_scan = true;
             t_write = true;
         }
         if (t_scan) {
-            if (g_scan_owner == ScanOwner::None && wifi::scan_start()) {
+            if (g_scan_owner == ScanOwner::None && wifi::scan_start(false)) {
                 g_scan_owner = ScanOwner::Test;
                 log("test: scan start");
             } else {
@@ -474,10 +618,10 @@ void request_cancel() {
     g_req_cancel = true;
 }
 
-void request_forget() {
+void request_start_over() {
     if (g_lock == nullptr) return;
     platform::tasks::Guard guard(*g_lock);
-    g_req_forget = true;
+    g_req_start_over = true;
 }
 
 bool request_stress(bool on) {

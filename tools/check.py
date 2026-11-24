@@ -13,6 +13,8 @@ Steps, in order, stopping at the first failure:
      01..14 and the redraw accounting, spec 003 FR-015, FR-016, FR-020)
   8. snapshot pixels and main-screen geometry (spec 003 FR-021), then the side-by-side comparison
      images in out/compare/ for review (spec 003 SC-001; informational)
+Spec 004 adds, after the TLS check: the setup page's logic tests (node --test), the place list's
+checksum, and the page build with its 25 600 B gzip budget (FR-013, FR-021, SC-006).
 
 Usage: python tools/check.py [--skip-firmware]
 """
@@ -64,6 +66,14 @@ def main() -> None:
     step("tool tests", [py, "-m", "unittest", "discover", "-s", "tools", "-p", "test_*.py"])
     step("silence check", [py, "tools/check_silence.py"])
     step("tls check", [py, "tools/check_tls.py"])
+    node = shutil.which("node") or shutil.which("node.exe")
+    if node is None:
+        sys.exit("CHECK FAILED: node not found (needed for the setup page tests, spec 004 R7)")
+    step("setup page tests", [node, "--test", "data/portal/test/logic.test.js"])
+    step("place list checksum", [py, "-c", "import sys; sys.path.insert(0, 'tools'); import gen_places, pathlib; "
+                                           "print(len(gen_places.verify_file(pathlib.Path('data/places_tr.json'))), "
+                                           "'provinces, checksum ok')"])
+    step("setup page build", [py, "tools/gen_web.py"])
     pio = find_pio()
     step("host tests", [pio, "test", "-e", "native"])
     step("engine table build", [pio, "run", "-e", "engine_table"])
