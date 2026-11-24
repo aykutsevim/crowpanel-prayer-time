@@ -76,7 +76,13 @@ def main() -> None:
     )
     if size > BUDGET_BYTES:
         sys.exit("CHECK FAILED: firmware over budget.")
-    step("size by module", [py, "tools/size_by_module.py", str(ROOT / ".pio" / "build" / FIRMWARE_ENV / "firmware.map")])
+    build = ROOT / ".pio" / "build" / FIRMWARE_ENV
+    # ESP-IDF names the map after the CMake project (decision 0002); Arduino builds wrote firmware.map.
+    map_file = build / "namaz_vakti_panel.map"
+    if not map_file.is_file():
+        map_file = build / "firmware.map"
+    step("size by module", [py, "tools/size_by_module.py", str(map_file)])
+    step("image silence check", [py, "tools/check_elf_silence.py", str(build / "firmware.elf")])
     step("ui snapshots", [pio, "run", "-e", "sim", "-t", "exec"])
     step("snapshot pixels", [py, "tools/check_snapshots.py"])
     print("\nCHECK PASSED")

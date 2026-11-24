@@ -24,9 +24,16 @@ def _report(target, source, env):
         env.Exit(1)
     # The diagnostic mode ships with the product; its share is reported separately (FR-032).
     project = env.subst("$PROJECT_DIR")
+    # Arduino builds wrote firmware.map; ESP-IDF builds name the map after the CMake project.
     map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
+    if not os.path.isfile(map_file):
+        map_file = os.path.join(env.subst("$BUILD_DIR"), "namaz_vakti_panel.map")
     subprocess.run([sys.executable, os.path.join(project, "tools", "size_by_module.py"), map_file,
                     "--root", project])
+    # The linked image must hold no audio-capable driver (SIL-05).
+    elf = os.path.join(env.subst("$BUILD_DIR"), "firmware.elf")
+    if subprocess.run([sys.executable, os.path.join(project, "tools", "check_elf_silence.py"), elf]).returncode != 0:
+        env.Exit(1)
 
 
 env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", _report)  # noqa: F821

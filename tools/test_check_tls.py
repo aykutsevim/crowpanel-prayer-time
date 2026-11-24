@@ -72,5 +72,36 @@ class TlsCheckTest(unittest.TestCase):
         self.assertEqual(check_tls.run(self.root), [])
 
 
+class IdfTlsCheckTest(unittest.TestCase):
+    """ESP-IDF client and configuration (research R8 L4)."""
+
+    setUp = TlsCheckTest.setUp
+    tearDown = TlsCheckTest.tearDown
+    _write = TlsCheckTest._write
+
+    def test_skip_common_name_check_fails(self) -> None:
+        self._write("src/platform/https.cpp", "cfg.skip_cert_common_name_check = true;\n")
+        self.assertTrue(check_tls.run(self.root))
+
+    def test_client_without_ca_fails(self) -> None:
+        self._write("src/platform/https.cpp", "esp_http_client_config_t cfg = {};\ncfg.url = kUrl;\n")
+        self.assertTrue(check_tls.run(self.root))
+
+    def test_client_with_bundle_passes(self) -> None:
+        text = "esp_http_client_config_t cfg = {};\ncfg.crt_bundle_attach = esp_crt_bundle_attach;\n"
+        self._write("src/platform/https.cpp", text)
+        self.assertEqual(check_tls.run(self.root), [])
+
+    def test_insecure_sdkconfig_fails(self) -> None:
+        self._write("sdkconfig.defaults", "CONFIG_ESP_TLS_INSECURE=y\n")
+        self.assertTrue(check_tls.run(self.root))
+        self._write("sdkconfig.defaults", "CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y\n")
+        self.assertTrue(check_tls.run(self.root))
+
+    def test_secure_sdkconfig_passes(self) -> None:
+        self._write("sdkconfig.defaults", "CONFIG_ESP_TLS_INSECURE=n\nCONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y\n")
+        self.assertEqual(check_tls.run(self.root), [])
+
+
 if __name__ == "__main__":
     unittest.main()

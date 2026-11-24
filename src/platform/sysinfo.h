@@ -15,6 +15,7 @@ struct Snapshot {
     uint32_t psram_bytes = 0;  // PSRAM size found at boot, 0 if none
     uint8_t mac[6] = {};       // station MAC
     const char* reset_reason = "unknown";
+    uint32_t coredump_bytes = 0;  // crash record saved in the coredump partition, 0 if none
 };
 
 // Reads the values that never change (flash and PSRAM size, MAC, reset reason) once. Call it

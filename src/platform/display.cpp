@@ -1,9 +1,9 @@
 #include "display.h"
 
-#include <Arduino.h>
 #include <esp_heap_caps.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_rgb.h>
+#include <esp_timer.h>
 
 #include <cstdio>
 
@@ -14,14 +14,16 @@
 namespace platform::display {
 namespace {
 
-constexpr int32_t kDrawLines = 40;  // 800 x 40 x 2 B = 64 000 B internal RAM (research R8 L0)
+// 800 x 40 x 2 B = 64 000 B internal RAM (research R8 L0). Halved in L3b on the Arduino libraries;
+// restored with L4, where internal RAM is no longer short.
+constexpr int32_t kDrawLines = 40;
 
 esp_lcd_panel_handle_t g_panel = nullptr;
 lv_display_t* g_display = nullptr;
 uint8_t* g_draw_buf = nullptr;
 TouchReadFn g_touch = nullptr;
 
-uint32_t tick_ms() { return millis(); }
+uint32_t tick_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 
 // Copies the rendered area into the PSRAM frame buffer. esp_lcd_panel_draw_bitmap copies
 // synchronously and writes the cache back, so the buffer can be reused at once.
@@ -64,7 +66,7 @@ Result begin() {
     cfg.data_width = 16;
     cfg.bits_per_pixel = 16;
     cfg.num_fbs = 1;
-    cfg.bounce_buffer_size_px = 0;  // L0: no bounce buffer (research R8)
+    cfg.bounce_buffer_size_px = board::kBounceBufferPx;  // research R8 (L3, L4)
     cfg.dma_burst_size = 64;
     cfg.hsync_gpio_num = board::kLcdHsync;
     cfg.vsync_gpio_num = board::kLcdVsync;
@@ -73,6 +75,7 @@ Result begin() {
     cfg.disp_gpio_num = -1;
     for (int i = 0; i < 16; ++i) cfg.data_gpio_nums[i] = board::kLcdData[i];
     cfg.flags.fb_in_psram = 1;
+    cfg.flags.bb_invalidate_cache = board::kBounceInvalidateCache ? 1 : 0;  // research R8
 
     esp_err_t err = esp_lcd_new_rgb_panel(&cfg, &g_panel);
     if (err == ESP_OK) err = esp_lcd_panel_reset(g_panel);

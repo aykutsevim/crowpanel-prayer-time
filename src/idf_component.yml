@@ -1,0 +1,5 @@
+# Managed components for the firmware (constitution Principle V: exact versions only).
+# joltwallet/littlefs 1.22.3 is the version Arduino-ESP32 3.3.12 used (its versions.txt), so the
+# "littlefs" partition written by earlier firmware stays readable (research R8, L4 port).
+dependencies:
+  joltwallet/littlefs: "==1.22.3"

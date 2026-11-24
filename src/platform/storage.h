@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 namespace platform::storage {
 
@@ -18,5 +19,9 @@ Result mount();
 
 // Writes 16 bytes to /selftest.bin, reads them back and compares them.
 Result self_test();
+
+// Stress mode (FR-013): rewrites /scratch.bin with 4096 bytes of a counter pattern. The file
+// never grows, and nothing else is touched.
+Result scratch_write(uint32_t counter);
 
 }  // namespace platform::storage

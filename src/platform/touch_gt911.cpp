@@ -1,13 +1,15 @@
 #include "touch_gt911.h"
 
-#include <Arduino.h>
-#include <Wire.h>
+#include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <cstdio>
 #include <cstring>
 
 #include "audio_off.h"
 #include "board.h"
+#include "i2c_bus.h"
 #include "sysinfo.h"
 
 namespace platform::touch {
@@ -23,27 +25,16 @@ bool g_pressed = false;
 int16_t g_x = 0;
 int16_t g_y = 0;
 
-bool probe(uint8_t address) {
-    Wire.beginTransmission(address);
-    return Wire.endTransmission() == 0;
-}
+bool probe(uint8_t address) { return i2c::probe(address); }
 
 bool read_regs(uint16_t reg, uint8_t* out, size_t n) {
-    Wire.beginTransmission(board::kGt911Address);
-    Wire.write(static_cast<uint8_t>(reg >> 8));
-    Wire.write(static_cast<uint8_t>(reg & 0xFF));
-    if (Wire.endTransmission(false) != 0) return false;
-    if (Wire.requestFrom(static_cast<uint8_t>(board::kGt911Address), static_cast<uint8_t>(n)) != n) return false;
-    for (size_t i = 0; i < n; ++i) out[i] = static_cast<uint8_t>(Wire.read());
-    return true;
+    const uint8_t addr[2] = {static_cast<uint8_t>(reg >> 8), static_cast<uint8_t>(reg & 0xFF)};
+    return i2c::write_read(board::kGt911Address, addr, sizeof addr, out, n);
 }
 
 bool write_reg(uint16_t reg, uint8_t value) {
-    Wire.beginTransmission(board::kGt911Address);
-    Wire.write(static_cast<uint8_t>(reg >> 8));
-    Wire.write(static_cast<uint8_t>(reg & 0xFF));
-    Wire.write(value);
-    return Wire.endTransmission() == 0;
+    const uint8_t buf[3] = {static_cast<uint8_t>(reg >> 8), static_cast<uint8_t>(reg & 0xFF), value};
+    return i2c::write(board::kGt911Address, buf, sizeof buf);
 }
 
 }  // namespace
@@ -59,11 +50,13 @@ Result begin() {
             break;
         }
         silence::aux_send(silence::kAuxTouchReset);  // 250: touch reset via the auxiliary controller
-        pinMode(board::kTouchInt, OUTPUT);
-        digitalWrite(board::kTouchInt, LOW);  // INT low while reset is released selects 0x5D
-        delay(120);
-        pinMode(board::kTouchInt, INPUT);
-        delay(100);
+        const gpio_num_t intr = static_cast<gpio_num_t>(board::kTouchInt);
+        gpio_reset_pin(intr);
+        gpio_set_level(intr, 0);
+        gpio_set_direction(intr, GPIO_MODE_OUTPUT);  // INT low while reset is released selects 0x5D
+        vTaskDelay(pdMS_TO_TICKS(120));
+        gpio_set_direction(intr, GPIO_MODE_INPUT);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
     if (!found) {
         std::snprintf(r.reason, sizeof r.reason, "GT911 not found at 0x%02X", board::kGt911Address);

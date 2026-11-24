@@ -3,6 +3,12 @@
 .pioenvs/
 .piolibdeps/
 
+# ESP-IDF (decision 0002): downloaded components and the expanded configuration are generated.
+# Keep sdkconfig.defaults (the source) and dependencies.lock (exact versions and hashes).
+managed_components/
+sdkconfig.*
+!sdkconfig.defaults
+
 # Host UI harness output
 out/
 

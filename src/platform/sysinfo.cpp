@@ -1,11 +1,12 @@
 #include "sysinfo.h"
 
-#include <Arduino.h>
+#include <esp_core_dump.h>
 #include <esp_flash.h>
 #include <esp_heap_caps.h>
 #include <esp_mac.h>
 #include <esp_psram.h>
 #include <esp_system.h>
+#include <esp_timer.h>
 
 namespace platform::sysinfo {
 namespace {
@@ -37,6 +38,7 @@ struct Fixed {
     uint32_t psram_bytes = 0;
     uint8_t mac[6] = {};
     const char* reset_reason = "unknown";
+    uint32_t coredump_bytes = 0;
 };
 Fixed g_fixed;
 
@@ -47,6 +49,8 @@ void read_fixed() {
     g_fixed.psram_bytes = static_cast<uint32_t>(esp_psram_get_size());
     esp_read_mac(g_fixed.mac, ESP_MAC_WIFI_STA);
     g_fixed.reset_reason = reset_reason_name(esp_reset_reason());
+    size_t addr = 0, size = 0;
+    if (esp_core_dump_image_get(&addr, &size) == ESP_OK) g_fixed.coredump_bytes = static_cast<uint32_t>(size);
     g_fixed.read = true;
 }
 
@@ -64,10 +68,11 @@ Snapshot read() {
     s.psram_bytes = g_fixed.psram_bytes;
     for (int i = 0; i < 6; ++i) s.mac[i] = g_fixed.mac[i];
     s.reset_reason = g_fixed.reset_reason;
+    s.coredump_bytes = g_fixed.coredump_bytes;
     return s;
 }
 
-uint32_t uptime_ms() { return millis(); }
+uint32_t uptime_ms() { return static_cast<uint32_t>(esp_timer_get_time() / 1000); }
 
 void note_peripheral_init() { ++g_inits; }
 

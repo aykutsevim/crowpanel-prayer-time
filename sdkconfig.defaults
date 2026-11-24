@@ -1,0 +1,37 @@
+# ESP-IDF 5.5.5 configuration for env crowpanel7_advance (research R8 L4, decisions 0002).
+# Validated first in spikes/l4-idf (owner: stable under scans, flash writes and HTTPS).
+
+# --- Chip, flash, PSRAM (vendor IDF Lesson03 sdkconfig; ESP32-S3-WROOM-1-N16R8) ---
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions/crowpanel7_advance.csv"
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP32S3_DATA_CACHE_32KB=y
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# --- RGB panel under Wi-Fi load (research R8, L4; not available with the Arduino libraries) ---
+CONFIG_SPIRAM_XIP_FROM_PSRAM=y
+CONFIG_LCD_RGB_ISR_IRAM_SAFE=y
+CONFIG_LCD_RGB_RESTART_IN_VSYNC=y
+
+# --- TLS: certificate checks always on (SEC-01, constitution Principle VIII) ---
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+CONFIG_ESP_TLS_INSECURE=n
+
+# --- Crash record in the coredump partition (report line "reset:") ---
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
+
+# --- Serial console: keep framework logs to warnings, so the contract's lines stay readable ---
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y

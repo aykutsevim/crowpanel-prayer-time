@@ -2,7 +2,7 @@
 //
 // esp_lcd RGB panel with the vendor timing, one frame buffer in PSRAM, no bounce buffer, and LVGL
 // 9.6 in PARTIAL mode with an 800x40 draw buffer in internal RAM. LVGL runs on the core that
-// calls begin() and handle(): the Arduino loop on core 1.
+// calls begin() and handle(): the UI task on core 1 (src/main.cpp).
 #pragma once
 
 #include <cstdint>

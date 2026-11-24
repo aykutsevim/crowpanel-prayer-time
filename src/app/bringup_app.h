@@ -14,7 +14,7 @@ void print_silence_line();
 // the console have started.
 void start();
 
-// Call from the Arduino loop().
+// Call repeatedly from the UI task (src/main.cpp, core 1).
 void loop();
 
 // FR-001a: stress mode, Wi-Fi setup and Wi-Fi join refuse to start while the silence step is
