@@ -6,6 +6,7 @@ Steps, in order, stopping at the first failure:
   2. silence check (SIL-05)
   3. TLS source check (SEC-01)
   4. host unit tests:   pio test -e native
+  4b. engine table:     pio run -e engine_table, then tools/check_engine_table.py (spec 002 FR-022)
   5. firmware build:    pio run -e crowpanel7_advance
   6. size report against the 2.9 MiB budget, then the diagnostic mode's share (FR-032)
   7. UI snapshots:      pio run -e sim -t exec  (engineering screens, FR-008)
@@ -62,6 +63,8 @@ def main() -> None:
     step("tls check", [py, "tools/check_tls.py"])
     pio = find_pio()
     step("host tests", [pio, "test", "-e", "native"])
+    step("engine table build", [pio, "run", "-e", "engine_table"])
+    step("engine table", [py, "tools/check_engine_table.py"])
     if args.skip_firmware:
         print("\nFirmware build skipped (--skip-firmware).")
         return
