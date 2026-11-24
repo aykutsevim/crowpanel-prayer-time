@@ -55,6 +55,7 @@ struct ReportInput {
     const char* reset_reason = "unknown";  // why the chip last restarted (power-on, panic, ...)
     uint32_t coredump_bytes = 0;           // size of a crash record saved in flash, 0 if none
     const char* clock_line = nullptr;      // spec 003: "rtc ... valid" / "sim ..."; omitted when null
+    const char* time_line = nullptr;       // spec 005: "valid, source ntp, last sync ..., zone ..."
     const char* screen_line = nullptr;     // spec 003: "main (state ok)" / "diagnostic" / "settings"
     // spec 004 (contracts/serial-console.md): names and classes only, never a password or PIN.
     const char* mode_line = nullptr;       // "setup, phones 1, last none" / "run, connected"

@@ -37,6 +37,11 @@ constexpr Entry kCommands[] = {
     {"clock run", Command::ClockRun},
     {"state auto", Command::StateAuto},
     {"fixture off", Command::FixtureOff},
+    {"tz", Command::TzGet},
+    {"time sync", Command::TimeSync},
+    {"ntp on", Command::NtpOn},
+    {"ntp off", Command::NtpOff},
+    {"clock invalid", Command::ClockInvalid},
 };
 
 }  // namespace
@@ -121,12 +126,31 @@ bool date_time(const char* p, ParsedCommand& c) {
     return c.month >= 1 && c.month <= 12 && engine::valid(d);
 }
 
+// "tz <string>": the zone is case-sensitive, so it is taken from the raw line, trimmed.
+bool tz_set(const char* line, ParsedCommand& c) {
+    const char* p = line;
+    while (is_space(*p)) ++p;
+    if (lower(p[0]) != 't' || lower(p[1]) != 'z' || !is_space(p[2])) return false;
+    p += 2;
+    while (is_space(*p)) ++p;
+    const char* end = p + std::strlen(p);
+    while (end > p && is_space(end[-1])) --end;
+    const size_t n = static_cast<size_t>(end - p);
+    c.command = Command::InvalidArgument;
+    if (n == 0 || n >= sizeof c.text) return true;
+    std::memcpy(c.text, p, n);
+    c.text[n] = '\0';
+    c.command = Command::TzSet;
+    return true;
+}
+
 }  // namespace
 
 ParsedCommand parse_command_line(const char* line) {
     ParsedCommand c;
     c.command = parse_command(line);
     if (c.command != Command::Unknown) return c;
+    if (line != nullptr && tz_set(line, c)) return c;
     char norm[64];
     if (line == nullptr || !normalise(line, norm, sizeof norm)) return c;  // Unknown
     const char* rest = nullptr;
@@ -139,6 +163,11 @@ ParsedCommand parse_command_line(const char* line) {
         const char* p = rest + 1;
         const bool ok = *rest == ' ' && number(p, 0, &n) && *p == '\0' && n >= 1 && n <= 3600;
         c.command = ok ? Command::ClockSpeed : Command::InvalidArgument;
+        c.number = n;
+    } else if (starts_with(norm, "time jitter", &rest)) {
+        const char* p = rest + 1;
+        const bool ok = *rest == ' ' && number(p, 0, &n) && *p == '\0' && n >= 10 && n <= 3600;
+        c.command = ok ? Command::TimeJitter : Command::InvalidArgument;
         c.number = n;
     } else if (starts_with(norm, "fixture", &rest)) {
         const char* p = rest + 1;

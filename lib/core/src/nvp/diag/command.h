@@ -35,6 +35,14 @@ enum class Command {
     StateAuto,
     Fixture,     // show reference fixture 1..17 (15-17: spec 004 setup screens)
     FixtureOff,
+    // Spec 005 (contracts/serial-console.md): real time.
+    TzGet,         // print the stored time zone
+    TzSet,         // store and apply a POSIX zone string (text, case kept)
+    TimeSync,      // ask SNTP for a fresh answer
+    NtpOn,
+    NtpOff,        // stop SNTP; the HTTP fallback takes over after 60 s
+    ClockInvalid,  // the time is not valid until the next accepted sample
+    TimeJitter,    // measure second alignment for N seconds (10..3600)
     InvalidArgument,  // a known command with a bad or missing argument
     Unknown,
 };
@@ -44,6 +52,7 @@ struct ParsedCommand {
     int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;  // TimeSet, ClockSim
     int32_t number = 0;  // ClockSpeed, Fixture, StateForce cache_ending days
     screen::SystemState state = screen::SystemState::Ok;  // StateForce
+    char text[64] = {};  // TzSet: the zone string as typed (case kept), at most 63 bytes
 };
 
 // parse_command plus the commands that take arguments. Same case and whitespace rules.
