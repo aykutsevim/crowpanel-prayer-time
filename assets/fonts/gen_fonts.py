@@ -46,6 +46,9 @@ TURKISH = "0x20-0x7E,0xC7,0xD6,0xDC,0xE7,0xF6,0xFC,0x11E,0x11F,0x130,0x131,0x15E
 NUM_DASH = "0x30-0x3A,0x2D"   # 0-9 : -
 NUM_ONLY = "0x30-0x3A"        # 0-9 :
 NUM_BOUNDS = "0x30-0x3A,0x2E,0x20"  # 0-9 : . space
+# Network and place names on the setup screens (spec 004 research R13): the Turkish set plus
+# Â â Î î Û û, which Diyanet's place names use (KÂĞITHANE). Must match nvp/text/glyph_filter.cpp.
+DISPLAY = TURKISH + ",0xC2,0xE2,0xCE,0xEE,0xDB,0xFB"
 
 FONTS = (  # name, file, size, ranges
     ("nvp_num_114", "BarlowCondensed-SemiBold.ttf", 114, NUM_DASH),
@@ -54,6 +57,9 @@ FONTS = (  # name, file, size, ranges
     ("nvp_num_46", "BarlowCondensed-SemiBold.ttf", 46, NUM_ONLY),
     ("nvp_num_44", "BarlowCondensed-SemiBold.ttf", 44, NUM_ONLY),
     ("nvp_num_25", "BarlowCondensed-SemiBold.ttf", 25, NUM_BOUNDS),
+    # Setup address and overlay PIN: references 15 and 17 show 15 px digits, a 21 px font (spec 004 R13).
+    ("nvp_num_21", "BarlowCondensed-SemiBold.ttf", 21, NUM_BOUNDS),
+    ("nvp_cond_600_38", "BarlowCondensed-SemiBold.ttf", 38, DISPLAY),  # setup SSID, password; connecting SSID
     ("nvp_txt_600_26", "Barlow-SemiBold.ttf", 26, TURKISH),
     ("nvp_txt_600_18", "Barlow-SemiBold.ttf", 18, TURKISH),
     ("nvp_txt_500_21", "Barlow-Medium.ttf", 21, TURKISH + ",0x2248"),  # + ≈ for the calculated state
@@ -61,6 +67,8 @@ FONTS = (  # name, file, size, ranges
     ("nvp_txt_400_20", "Barlow-Regular.ttf", 20, TURKISH),
     ("nvp_txt_400_17", "Barlow-Regular.ttf", 17, TURKISH),
     ("nvp_txt_400_15", "Barlow-Regular.ttf", 15, TURKISH),
+    ("nvp_txt_600_19", "Barlow-SemiBold.ttf", 19, "0x31-0x33"),       # setup step numbers 1-3
+    ("nvp_txt_400_18", "Barlow-Regular.ttf", 18, DISPLAY + ",0x2014"),  # overlay values; — for "not yet"
     ("nvp_txt_400_14", "Barlow-Regular.ttf", 14, TURKISH),  # also the hour labels (02 §2.2 consolidation)
 )
 BUDGET = 300 * 1024

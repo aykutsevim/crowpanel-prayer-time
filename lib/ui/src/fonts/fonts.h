@@ -15,6 +15,8 @@ extern const lv_font_t nvp_num_48;   // column times         0-9 : -
 extern const lv_font_t nvp_num_46;   // clock seconds        0-9 :
 extern const lv_font_t nvp_num_44;   // column times, calculated state
 extern const lv_font_t nvp_num_25;   // period bounds        0-9 : . space
+extern const lv_font_t nvp_num_21;   // setup address, overlay PIN (spec 004 R13)  0-9 : . space
+extern const lv_font_t nvp_cond_600_38;  // setup SSID and password, connecting SSID: names (DISPLAY set)
 // Barlow: text, Turkish set.
 extern const lv_font_t nvp_txt_600_26;  // period name
 extern const lv_font_t nvp_txt_600_18;  // city
@@ -23,5 +25,7 @@ extern const lv_font_t nvp_txt_500_19;  // column names
 extern const lv_font_t nvp_txt_400_20;  // "… kalan süre" label
 extern const lv_font_t nvp_txt_400_17;  // Hijri date
 extern const lv_font_t nvp_txt_400_15;  // column notes (also the current one, 02 §2.2 consolidation)
+extern const lv_font_t nvp_txt_600_19;  // setup step numbers 1-3
+extern const lv_font_t nvp_txt_400_18;  // overlay values (DISPLAY set + —)
 extern const lv_font_t nvp_txt_400_14;  // status text, legend, hour labels (02 §2.2 consolidation)
 }
