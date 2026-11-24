@@ -18,7 +18,7 @@ Order matters. The early slices remove the largest risks first: can the board sh
 | 7 | Automatic refresh and fallback | the device keeps itself up to date and survives outages, with honest labelling | DATA-03…05, LOC-03, all providers except the official API, `04-data-sources.md` §4–7 | 6 |
 | 8 | Settings page | change location and display options from a browser on the home network | SET-01…03 (SET-04 dropped, OD1), NET-07, SEC-01…05 | 7 |
 | 9 | Hardening and release | a version 1.0.0 that has run for 24 hours unattended | SYS-01…05, targets in `03-functional-spec.md` §12 | 8 |
-| 10 | Optional extras | official Diyanet API with the owner’s credentials; battery-backed clock | `04-data-sources.md` §3.3, TIME-08 | 9 |
+| 10 | Optional extras | official Diyanet API with the owner’s credentials (the battery-backed clock moved to Slices 3 and 5) | `04-data-sources.md` §3.3 | 9 |
 
 ## Slice 0: Bootstrap
 
@@ -50,7 +50,8 @@ Order matters. The early slices remove the largest risks first: can the board sh
 **Goal.** The approved design, pixel-faithful, on the real panel.
 **Delivers.** Converted fonts; `lib/ui` main screen; the host UI harness that renders every fixture to PNG; development serial commands to set simulated time, speed and system state; the six system-state variants rendered from forced state.
 **Done when.** Snapshots for fixtures 01–14 have been reviewed against the references within the tolerances of `02-ui-spec.md` §12, and the owner confirms on the panel that the screen is legible from three metres and matches the reference renders for the listed times of day.
-**Out of scope.** Real time, real data, Wi-Fi.
+**Out of scope.** Network time, real data, Wi-Fi.
+**Added in Slice 3 (owner decision, spec 003 OD3-1).** The time comes from the board's battery-backed BM8563 clock at every start (TIME-08, read half); development commands set it. Without loaded prayer times the device starts in the truthful `no_data` state.
 
 ## Slice 4: Wi-Fi setup from the phone
 
