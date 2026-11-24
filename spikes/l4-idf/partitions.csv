@@ -1,0 +1,10 @@
+# Same layout as partitions/crowpanel7_advance.csv, so the product's NVS (stored Wi-Fi details),
+# LittleFS and coredump areas are kept. The spike's 4 kB test writes go to "scratch", in the
+# region the product leaves unallocated (0x730000 onwards).
+# Name,    Type, SubType,  Offset,   Size
+nvs,       data, nvs,      0x9000,   0x6000
+phy_init,  data, phy,      0xF000,   0x1000
+factory,   app,  factory,  0x10000,  0x300000
+littlefs,  data, spiffs,   0x310000, 0x400000
+coredump,  data, coredump, 0x710000, 0x20000
+scratch,   data, 0x40,     0x730000, 0x10000

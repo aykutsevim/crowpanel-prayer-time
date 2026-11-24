@@ -38,7 +38,15 @@
 #define LV_USE_LOG 1
 #define LV_USE_TEST 1
 #define LV_USE_TEST_SCREENSHOT_COMPARE 1
+/* Write the PNG when no reference exists; the harness deletes old snapshots first. */
+#define LV_TEST_SCREENSHOT_CREATE_REFERENCE_IMAGE 1
 #define LV_USE_LODEPNG 1
+/* LVGL's LodePNG reads and writes through lv_fs: give it the C stdio driver as the default
+ * drive, so plain relative paths such as out/snapshots/x.png work. */
+#define LV_USE_FS_STDIO 1
+#define LV_FS_STDIO_LETTER 'A'
+#define LV_FS_STDIO_PATH ""
+#define LV_FS_DEFAULT_DRIVER_LETTER 'A'
 #else
 /* Device: no LVGL logging. */
 #define LV_USE_LOG 0

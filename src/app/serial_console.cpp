@@ -27,7 +27,11 @@ void serial_console_print_help() {
         "  wifi setup    start the setup hotspot\n"
         "  wifi cancel   close the hotspot, keep stored details\n"
         "  wifi forget   erase stored Wi-Fi details and disconnect\n"
-        "  diag          show the diagnostic screen\n");
+        "  diag          show the diagnostic screen\n"
+        "  test write    one 4 kB scratch write (diagnostic)\n"
+        "  test scan     one Wi-Fi scan (diagnostic)\n"
+        "  test https    one HTTPS request (diagnostic)\n"
+        "  test mix      one scan with a write at its start (diagnostic)\n");
 }
 
 void serial_console_poll(const ConsoleHandlers& handlers) {
@@ -47,6 +51,10 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::WifiSetup: call(handlers.wifi_setup); break;
         case Command::WifiCancel: call(handlers.wifi_cancel); break;
         case Command::WifiForget: call(handlers.wifi_forget); break;
+        case Command::TestWrite: call(handlers.test_write); break;
+        case Command::TestScan: call(handlers.test_scan); break;
+        case Command::TestHttps: call(handlers.test_https); break;
+        case Command::TestMix: call(handlers.test_mix); break;
         // Slice 1 has no product screen: the device is always in the diagnostic mode (FR-007a).
         case Command::Diag: platform::console::write("already in diagnostic mode\n"); break;
         case Command::Unknown: platform::console::write("unknown command, type help\n"); break;

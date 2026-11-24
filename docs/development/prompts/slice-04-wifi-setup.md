@@ -2,6 +2,15 @@
 
 Goal: someone who has never seen the device puts it on their home Wi-Fi and chooses their district using only a phone and the instructions on the device’s screen. See `docs/specification/06-roadmap.md`.
 
+Slice 1 already built a minimal, engineering-only version of this (owner decision 2026-11-20; `specs/001-silent-board-bringup/contracts/setup-portal.md`, research R11). This slice extends it and does not replace it (FR-025 of spec 001):
+
+- NVS namespace `wifi`, keys `ssid` and `pass`: stored only after a successful connection, the password write-only. Devices already set up in Slice 1 must keep working without being set up again.
+- NVS namespace `ap`, key `pass`: the access-point password, eight decimal digits generated on first use and kept until factory reset. It is the `ap_password` of the settings table.
+- Access point `NamazVakti-XXXX` (last four hex digits of the station MAC), WPA2-PSK, at most two clients, 192.168.4.1, AP+STA mode.
+- Portal paths on port 80: `GET /`, `GET /api/scan`, `GET /api/status`, `POST /api/setup` (form-encoded `ssid` and `password`, answered `202` at once). This slice adds the rest of NET-04, the captive-portal DNS responder, the location fields and classified errors (NET-05).
+- Platform code is plain ESP-IDF since Slice 1 (`docs/decisions/0002-display-stack.md`): `esp_wifi`/`esp_netif` for Wi-Fi, `esp_http_server` for the portal, `nvs` for storage. The custom portal was chosen over a Wi-Fi manager library in Slice 1.
+- Rule from Slice 1: no flash write (NVS or files) while a Wi-Fi scan is in progress. Storing credentials after a connection must not overlap a scan.
+
 ## Step 1: Specify
 
 **Paste into Claude Code**
@@ -48,15 +57,15 @@ Suggested answers if asked: the device screen is the source of truth for the res
 /speckit.plan Plan Wi-Fi setup through the device's own access point.
 
 Constraints and research:
-- Research first, with sources, in research.md: (a) how current iOS and Android detect captive portals (probe hosts and paths, expected responses, what makes the sign-in sheet appear and stay open) and how the chosen framework's access point, DNS and HTTP server satisfy them; (b) behaviour of simultaneous access-point and station operation on the ESP32-S3, in particular channel changes when the station connects and what that does to the joined phone; (c) how the framework reports connection failures so they can be classified as wrong password, network not found or other; (d) whether a general-purpose Wi-Fi manager library fits the page and flow in 02-ui-spec.md §10, or a small custom portal is simpler. Recommend one and say why.
+- Research first, with sources, in research.md: (a) how current iOS and Android detect captive portals (probe hosts and paths, expected responses, what makes the sign-in sheet appear and stay open) and how ESP-IDF's access point (esp_wifi, esp_netif), a DNS responder and esp_http_server satisfy them; (b) behaviour of simultaneous access-point and station operation on the ESP32-S3, in particular channel changes when the station connects and what that does to the joined phone; (c) how ESP-IDF 5.5.5 reports connection failures (esp_wifi events and disconnect reasons) so they can be classified as wrong password, network not found or other; (d) Slice 1 chose a small custom portal; confirm it still fits the page and flow in 02-ui-spec.md §10, and extend Slice 1's portal code rather than adding a Wi-Fi manager library.
 - Access point per NET-02; DNS and probe handling per NET-03; HTTP interface per NET-04. The server runs in its own context and only posts commands to the app task (05-architecture.md §6).
 - The setup page is one self-contained document, no external requests, under 25 kB gzipped excluding the place list, usable at 320 px width, Turkish, matching the palette. Put its source in data/ with a build step that minifies and compresses it into the firmware. Write it so the same components are reused by the settings page in Slice 8.
 - Place list: write tools/gen_places.py per 04-data-sources.md §9, run it, review its output (81 provinces, plausible district counts, Turkish characters intact), and commit the generated file with its generation date and checksum. Inspect the provider's location responses live before coding the script; do not assume their shape. The page loads the list from the device and applies Turkish title casing.
 - Mode state machine per 03-functional-spec.md §1 in src/app, as a table-driven state machine that is unit-tested on the host with fake Wi-Fi events: every transition, timeout and failure class.
-- Credentials and location are stored in non-volatile storage only after a successful connection. The Wi-Fi password is never logged or returned by any endpoint (NET-08).
+- Credentials and location are stored in non-volatile storage only after a successful connection, in Slice 1's NVS keys (`wifi/ssid`, `wifi/pass`; `ap/pass` for the access-point password); new keys such as the location go beside them. The Wi-Fi password is never logged or returned by any endpoint (NET-08).
 - Screens: setup, connecting and status overlay from 02-ui-spec.md §7, in lib/ui, with fixtures 15 to 17 added to the host UI harness. QR codes are generated on the device; pick a small, maintained generator and pin it. The overlay's hold gesture and confirmation dialog are part of this slice.
 - Reconnect policy per NET-01. The access point is started only in SETUP mode (MODE-05).
-- Development serial commands: show setup screen, forget Wi-Fi, report Wi-Fi state. None of them prints a password.
+- Development serial commands: show setup screen, forget Wi-Fi, report Wi-Fi state. None of them prints a password. Slice 1 already has `wifi setup`, `wifi cancel`, `wifi forget` and the `wifi:` line of `report` (specs/001-silent-board-bringup/contracts/serial-console.md); extend those rather than adding parallel commands.
 - Security review as part of the plan: what an attacker within radio range can and cannot do while the access point is up, and after setup.
 ```
 

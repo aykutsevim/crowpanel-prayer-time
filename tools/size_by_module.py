@@ -32,7 +32,13 @@ def _member_names(root: Path, rel_dir: str) -> set[str]:
     base = root / rel_dir
     if not base.is_dir():
         return set()
-    return {p.name + ".o" for p in base.rglob("*") if p.suffix in {".c", ".cpp"}}
+    # Arduino builds named members "x.cpp.o", ESP-IDF builds "x.o": accept both.
+    names: set[str] = set()
+    for p in base.rglob("*"):
+        if p.suffix in {".c", ".cpp"}:
+            names.add(p.name + ".o")
+            names.add(p.stem + ".o")
+    return names
 
 
 def _counted(name: str, address: int) -> bool:

@@ -34,6 +34,7 @@ ReportInput stage1_input() {
     in.heap_psram_free = 7340032;
     in.boot_to_diag_ms = 0;
     in.uptime_s = 42;
+    in.reset_reason = "power-on";
     return in;
 }
 
@@ -51,11 +52,13 @@ const char* kStage1Report =
     "selftest wifi: skipped (not in this stage)\n"
     "wifi: off\n"
     "backlight: full (dimming disabled)\n"
+    "touch corners: TL not touched TR not touched BL not touched BR not touched\n"
     "heap internal: 182340 free, 160000 largest\n"
     "heap psram: 7340032 free\n"
     "stress: off\n"
     "boot-to-diag: n/a (no display)\n"
     "uptime: 42 s\n"
+    "reset: power-on\n"
     "=== END ===\n";
 
 }  // namespace
@@ -211,6 +214,68 @@ static void test_ssid_control_characters_cannot_break_lines() {
     TEST_ASSERT_NOT_NULL(std::strstr(buf, "\nwifi: joining a?b?c\n"));
 }
 
+static void test_touch_corners_line() {
+    // contracts/serial-console.md: TL passed (+2,-1) TR not touched BL failed (+14,+3) BR passed (0,0)
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.corners[0] = CornerResult{CornerState::Passed, 2, -1};
+    in.corners[2] = CornerResult{CornerState::Failed, 14, 3};
+    in.corners[3] = CornerResult{CornerState::Passed, 0, 0};
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(
+        buf, "\ntouch corners: TL passed (+2,-1) TR not touched BL failed (+14,+3) BR passed (0,0)\n"));
+}
+
+static void test_reset_line_mentions_a_saved_core_dump() {
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.reset_reason = "panic";
+    in.coredump_bytes = 23552;
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(buf, "\nreset: panic, core dump saved (23552 B)\n"));
+}
+
+static void test_stress_lines() {
+    // contracts/serial-console.md: stress: off | on 312 s cycles 31 scan 31/0 write 31/0 https 10/0/0 last-error none
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.stress_running = true;
+    in.stress.elapsed_s = 312;
+    in.stress.cycles = 31;
+    in.stress.scan_ok = 31;
+    in.stress.write_ok = 31;
+    in.stress.https_ok = 10;
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(
+        buf, "\nstress: on 312 s cycles 31 scan 31/0 write 31/0 https 10/0/0 last-error none\n"));
+
+    in.stress_paused = true;
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(buf, "\nstress: paused (hotspot open) 312 s cycles 31 "));
+
+    in.stress_running = false;
+    in.stress_paused = false;
+    in.stress_has_run = true;
+    in.stress.https_err = 1;
+    std::strcpy(in.stress.last_error, "https: timeout");
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(
+        buf, "\nstress: off, last run 312 s cycles 31 scan 31/0 write 31/0 https 10/1/0 last-error https: timeout\n"));
+}
+
+static void test_hotspot_line_never_has_its_password() {
+    // FR-024, NET-08, tasks T070: the hotspot line has the name and address only.
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.wifi.kind = WifiKind::Hotspot;
+    std::strcpy(in.wifi.ap_ssid, "NamazVakti-1A2B");
+    std::strcpy(in.wifi.ap_address, "192.168.4.1");
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(buf, "\nwifi: hotspot NamazVakti-1A2B at 192.168.4.1\n"));
+    TEST_ASSERT_NULL(std::strstr(buf, "password"));
+    TEST_ASSERT_NULL(std::strstr(buf, "pass:"));
+}
+
 static void test_report_never_contains_secret() {
     // FR-024, FR-026: ReportInput has no password field, so a password has nowhere to go.
     // The SSID may look like a password; it is the network name and is shown as such.
@@ -252,6 +317,10 @@ void run_selftest_report_tests() {
     RUN_TEST(test_boot_to_diag_value);
     RUN_TEST(test_wifi_lines);
     RUN_TEST(test_ssid_control_characters_cannot_break_lines);
+    RUN_TEST(test_touch_corners_line);
+    RUN_TEST(test_reset_line_mentions_a_saved_core_dump);
+    RUN_TEST(test_stress_lines);
+    RUN_TEST(test_hotspot_line_never_has_its_password);
     RUN_TEST(test_report_never_contains_secret);
     RUN_TEST(test_small_buffer_is_truncated_safely);
 }

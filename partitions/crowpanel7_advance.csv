@@ -2,9 +2,11 @@
 # specs/001-silent-board-bringup/plan.md and docs/specification/05-architecture.md §5:
 # NVS 24 kB, PHY 4 kB, app 3.0 MB (image <= 2.9 MiB budget kept as a discipline),
 # LittleFS 4 MB (label "littlefs"; LittleFS.begin(..., "littlefs") must name it).
-# The remaining 8.9 MB (0x710000 to 0x1000000) is deliberately unallocated.
+# coredump: 128 kB for the crash record the libraries write on a panic (ELF, added 2026-11-23 after an
+# unexplained restart). The remaining 8.8 MB (0x730000 to 0x1000000) is deliberately unallocated.
 # Name,    Type, SubType,  Offset,   Size
 nvs,       data, nvs,      0x9000,   0x6000
 phy_init,  data, phy,      0xF000,   0x1000
 factory,   app,  factory,  0x10000,  0x300000
 littlefs,  data, spiffs,   0x310000, 0x400000
+coredump,  data, coredump, 0x710000, 0x20000

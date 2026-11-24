@@ -34,8 +34,8 @@ It is a personal device for one household. There is no cloud backend, no account
 
 | Constraint | Detail |
 |---|---|
-| **Silence** | The firmware must not produce sound under any circumstance, including boot, errors, touch feedback and tests. The board has an audio amplifier and speaker connector (the Advance model also a buzzer and microphone); they must stay disabled. Backlight dimming must not create audible whine. |
-| **Hardware** | Elecrow CrowPanel 7.0" ESP32-S3, 800×480, capacitive touch. Default target is the basic model (DIS08070H: 4 MB flash, 8 MB PSRAM, TN panel). The Advance model is a second build profile. See `05-architecture.md`. |
+| **Silence** | The firmware must not produce sound under any circumstance, including boot, errors, touch feedback and tests. The board has an audio amplifier and speaker connector (the Advance model also a buzzer and microphone); they must stay disabled. Backlight dimming must not create audible whine; on the target board the backlight is therefore never dimmed (owner decision OD1). |
+| **Hardware** | Elecrow CrowPanel 7.0" ESP32-S3, 800×480, capacitive touch. The target is the Advance model, DIS02170A revision V1.4 (16 MB flash, 8 MB PSRAM, IPS panel), by owner decision on 2026-11-20. The basic model (DIS08070H) is not supported. See `05-architecture.md`. |
 | **Design** | Design A as specified in `02-ui-spec.md`. The layout is approved; do not redesign it. |
 | **Data authority** | Diyanet’s published times are the reference. Anything else is a fallback and is labelled as approximate. |
 | **Setup** | Wi-Fi provisioning through the device’s own access point and a captive portal page on the phone. |
@@ -72,8 +72,8 @@ These do not block Slice 1 to Slice 3. Each has a default that the firmware uses
 
 | # | Question | Default in use |
 |---|---|---|
-| 1 | Which board exactly: basic (label DIS08070H) or Advance (DIS02170A), and which hardware revision is printed on the PCB? | Basic, revision auto-detected where possible |
+| 1 | Which board exactly: basic (label DIS08070H) or Advance (DIS02170A), and which hardware revision is printed on the PCB? | **Answered 2026-11-20:** Advance, DIS02170A, revision V1.4 (silkscreen confirmed by the owner on 2026-11-23, check I1). It is the only build target (`crowpanel7_advance`). |
 | 2 | Kerahat layer: keep it on, and are 45 minutes after sunrise, 45 before Öğle and 45 before Akşam the durations you want? | On, 45 / 45 / 45 |
 | 3 | Do you have, or want to apply for, credentials for Diyanet’s official API? Without them the device uses community mirrors of the same data. | No credentials; optional later |
-| 4 | Should the backlight dim at night? | Off; available as a setting in Slice 8 |
+| 4 | Should the backlight dim at night? | **Answered 2026-11-20: no** (owner decision OD1). The backlight is always fully on; there is no brightness or night-dimming setting (SET-04 dropped). |
 | 5 | Is a 6-digit PIN on the settings page acceptable, or should the home network be trusted without one? | PIN required |

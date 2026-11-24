@@ -12,6 +12,10 @@ struct ConsoleHandlers {
     void (*wifi_setup)() = nullptr;
     void (*wifi_cancel)() = nullptr;
     void (*wifi_forget)() = nullptr;
+    void (*test_write)() = nullptr;
+    void (*test_scan)() = nullptr;
+    void (*test_https)() = nullptr;
+    void (*test_mix)() = nullptr;
 };
 
 // Call from loop(): handles at most one complete line per call.

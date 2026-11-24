@@ -27,7 +27,7 @@ What counts as passed:
 | Touch | GT911 answers at 0x5D and its product ID reads `911` |
 | Backlight | byte 0 acknowledged |
 | Storage | LittleFS mounted and a 16-byte write/read-back matches |
-| WiFi | radio started; one scan completed (zero networks counts as completed) |
+| WiFi | radio started, and one scan completed (zero networks counts as completed) or a network joined. Skipped with the reason until then (2026-11-23). |
 
 **State**: `Pending → Passed | Failed | Skipped`, set once at boot. Storage and WiFi are re-evaluated by stress cycles. A failure never stops the other tests (FR-027).
 

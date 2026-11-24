@@ -24,6 +24,10 @@ constexpr Entry kCommands[] = {
     {"wifi cancel", Command::WifiCancel},
     {"wifi forget", Command::WifiForget},
     {"diag", Command::Diag},
+    {"test write", Command::TestWrite},
+    {"test scan", Command::TestScan},
+    {"test https", Command::TestHttps},
+    {"test mix", Command::TestMix},
 };
 
 }  // namespace

@@ -6,13 +6,15 @@
 // (amplifier on) can never be sent: aux_send() checks every byte against the gate.
 #include "audio_off.h"
 
-#include <Arduino.h>
-#include <Wire.h>
+#include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <cstdio>
 
 #include "board.h"
 #include "console_io.h"
+#include "i2c_bus.h"
 #include "sysinfo.h"
 
 #if defined(NVP_DEBUG)
@@ -25,11 +27,7 @@ namespace {
 SilenceState g_state;
 bool g_console_ready = false;
 
-bool write_byte(uint8_t b) {
-    Wire.beginTransmission(board::kAuxAddress);
-    Wire.write(b);
-    return Wire.endTransmission() == 0;  // 0: acknowledged
-}
+bool write_byte(uint8_t b) { return i2c::write(board::kAuxAddress, &b, 1); }  // true: acknowledged
 
 }  // namespace
 
@@ -46,8 +44,8 @@ bool aux_send(uint8_t b) {
 }
 
 void audio_off() {
-    // Truthful "ran first": no other platform start-up may have run (tasks T024). The Arduino
-    // core's own start-up before setup() is outside the firmware's control.
+    // Truthful "ran first": no other platform start-up may have run (tasks T024). ESP-IDF's own
+    // start-up before app_main() starts no audio peripheral.
     g_state.ran_first = sysinfo::peripheral_inits() == 0;
 #if defined(NVP_DEBUG)
     assert(g_state.ran_first && "audio_off() must be the first platform call");
@@ -55,13 +53,15 @@ void audio_off() {
 
     // 1. Park the ESP32 ends of the I2S lines (GPIO4 data, GPIO5 bit clock, GPIO6 word clock).
     for (int pin : board::kAmpDataPins) {
-        digitalWrite(pin, LOW);
-        pinMode(pin, OUTPUT);
-        digitalWrite(pin, LOW);
+        const gpio_num_t g = static_cast<gpio_num_t>(pin);
+        gpio_reset_pin(g);
+        gpio_set_level(g, 0);
+        gpio_set_direction(g, GPIO_MODE_OUTPUT);
+        gpio_set_level(g, 0);
     }
 
     // 2. Start the shared I2C bus (SDA 15, SCL 16).
-    if (!Wire.begin(board::kI2cSda, board::kI2cScl, board::kI2cHz)) {
+    if (!i2c::begin()) {
         g_state.ran = true;
         g_state.acknowledged = false;
         std::snprintf(g_state.reason, sizeof g_state.reason, "I2C start failed");
@@ -79,7 +79,7 @@ void audio_off() {
             g_state.acknowledged = true;
             break;
         }
-        delay(kSilenceRetryMs);
+        vTaskDelay(pdMS_TO_TICKS(kSilenceRetryMs));
     }
     g_state.ran = true;
     if (!g_state.acknowledged) {

@@ -45,9 +45,9 @@ struct SilenceState {
     char reason[48] = {};
 };
 
-#ifdef ARDUINO
+#ifdef ESP_PLATFORM
 // Parks the audio data lines low, starts I2C and sends the silence sequence with bounded
-// retries. Must be the first statement of setup().
+// retries. Must be the first statement of app_main().
 void audio_off();
 
 // The only writer to the auxiliary controller. Refuses any byte the gate rejects, records it and

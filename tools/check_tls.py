@@ -10,7 +10,13 @@ Certificate verification stays on in every build. In Arduino-ESP32 3.3.12 the on
 
 The safe form is `http.begin(client, url)` with `client.useBuiltinCACertBundle()`.
 
-Scanned:  src/, lib/, include/, sim/ (C, C++ and header files).
+Since the move to plain ESP-IDF (research R8, L4) it also fails on:
+
+  - `skip_cert_common_name_check = true`
+  - a file that fills an `esp_http_client_config_t` without `crt_bundle_attach` or `cert_pem`
+  - `CONFIG_ESP_TLS_INSECURE=y` or `CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y` in sdkconfig files
+
+Scanned:  src/, lib/, include/, sim/ (C, C++ and header files), and sdkconfig* in the root.
 Usage:    python tools/check_tls.py [--root DIR]
 Exit:     0 clean, 1 violation(s) found.
 """
@@ -30,7 +36,12 @@ RULES = (
         re.compile(r"\bbegin\s*\(\s*(?:String\s*\(\s*)?\"https", re.IGNORECASE),
         "one-argument begin(\"https...\") skips certificate checks; use begin(client, url)",
     ),
+    (re.compile(r"\bskip_cert_common_name_check\s*=\s*true"), "skip_cert_common_name_check disables host name checks"),
 )
+
+SDKCONFIG_RULE = re.compile(r"^\s*CONFIG_ESP_TLS_(INSECURE|SKIP_SERVER_CERT_VERIFY)\s*=\s*y", re.MULTILINE)
+CLIENT_CONFIG = re.compile(r"\besp_http_client_config_t\b")
+CA_SET = re.compile(r"\b(crt_bundle_attach|cert_pem)\b")
 
 
 def run(root: Path) -> list[str]:
@@ -48,6 +59,11 @@ def run(root: Path) -> list[str]:
                 for pattern, reason in RULES:
                     if pattern.search(line):
                         violations.append(f"{rel}:{lineno}: {reason}")
+            if CLIENT_CONFIG.search(text) and not CA_SET.search(text):
+                violations.append(f"{rel}: esp_http_client_config_t without crt_bundle_attach or cert_pem")
+    for path in sorted(root.glob("sdkconfig*")):
+        if path.is_file() and SDKCONFIG_RULE.search(path.read_text(encoding="utf-8", errors="replace")):
+            violations.append(f"{path.name}: ESP-TLS certificate verification turned off")
     return violations
 
 

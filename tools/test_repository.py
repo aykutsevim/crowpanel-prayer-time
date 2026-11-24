@@ -18,6 +18,9 @@ ROOT = Path(__file__).resolve().parent.parent
 
 REQUIRED_IGNORES = (
     ".pio/",
+    "managed_components/",
+    "sdkconfig.*",
+    "!sdkconfig.defaults",
     "out/",
     "__pycache__/",
     ".vscode/",
@@ -54,20 +57,46 @@ class DeviceBuildTest(unittest.TestCase):
 
     ROOT = ROOT
 
-    def test_device_env_ignores_core_audio_libraries(self) -> None:
-        # research R3.6: the Arduino core ships ESP_I2S and ESP_SR; a stray include must fail.
+    def _device_envs(self):
         import configparser
 
         parser = configparser.ConfigParser(interpolation=None, strict=False)
         parser.read(self.ROOT / "platformio.ini", encoding="utf-8")
-        device_envs = [s for s in parser.sections() if s.startswith("env:crowpanel7")]
-        self.assertTrue(device_envs, "no device environment found in platformio.ini")
-        for section in device_envs:
+        envs = [s for s in parser.sections() if s.startswith("env:crowpanel7")]
+        self.assertTrue(envs, "no device environment found in platformio.ini")
+        return parser, envs
+
+    def test_device_env_is_pinned_espidf_without_arduino(self) -> None:
+        # research R8 L4 and R9: plain ESP-IDF, framework package pinned exactly (Principle V).
+        # The Arduino core shipped audio libraries (ESP_I2S, ESP_SR); it is no longer used.
+        parser, envs = self._device_envs()
+        for section in envs:
             with self.subTest(env=section):
-                raw = parser.get(section, "lib_ignore", fallback="")
-                names = {line.split(";", 1)[0].strip() for line in raw.splitlines()}
-                self.assertIn("ESP_I2S", names)
-                self.assertIn("ESP_SR", names)
+                self.assertEqual(parser.get(section, "framework").strip(), "espidf")
+                packages = parser.get(section, "platform_packages", fallback="")
+                self.assertRegex(packages, r"framework-espidf@\d+\.\d+\.\d+")
+                self.assertNotIn("arduino", packages.lower())
+
+    def test_device_env_runs_the_image_silence_check(self) -> None:
+        # SIL-05: tools/pio_size_budget.py runs tools/check_elf_silence.py on every device build.
+        parser, envs = self._device_envs()
+        hook = (self.ROOT / "tools" / "pio_size_budget.py").read_text(encoding="utf-8")
+        self.assertIn("check_elf_silence.py", hook)
+        for section in envs:
+            with self.subTest(env=section):
+                self.assertIn("post:tools/pio_size_budget.py", parser.get(section, "extra_scripts"))
+
+    def test_managed_components_are_pinned_and_silent(self) -> None:
+        # Principle V (exact versions) and Principle I (no audio component).
+        manifest = (self.ROOT / "src" / "idf_component.yml").read_text(encoding="utf-8")
+        for line in manifest.splitlines():
+            stripped = line.split("#", 1)[0].strip()
+            if ":" not in stripped or stripped.startswith("dependencies"):
+                continue
+            name, version = (part.strip().strip('"') for part in stripped.split(":", 1))
+            with self.subTest(component=name):
+                self.assertRegex(version, r"^==\d+\.\d+\.\d+$")
+                self.assertIsNone(check_silence.BANNED_DEPENDENCY_PATTERN.search(name))
 
     def test_allow_list_names_existing_files(self) -> None:
         for rel in check_silence.ALLOW_LIST:

@@ -2,7 +2,7 @@
 
 Goal: the approved design on the real panel, faithful to the reference, showing every time-of-day and system state from sample data and a simulated clock. See `docs/specification/06-roadmap.md`.
 
-Needs Slice 1 (display stack decided) and Slice 2 (engine).
+Needs Slice 1 (display stack decided) and Slice 2 (engine). Slice 1 settled the stack: plain ESP-IDF 5.5.5 with the `esp_lcd` RGB panel and LVGL 9.6.0 (`docs/decisions/0002-display-stack.md`). It also left the diagnostic and settings screens in the product firmware for good; from this slice on they become a hidden mode (FR-007a of `specs/001-silent-board-bringup/spec.md`).
 
 ## Step 1: Specify
 
@@ -29,11 +29,13 @@ User stories, in priority order:
 
 6. Self-checking. As the developer, I can render each fixture to an image file on the development machine without the device, so that the screen can be compared with the reference before the owner is asked to look.
 
-Requirements covered: UI-01 to UI-05, SYS-06, and 02-ui-spec.md §1 to §6, §9, §11, §12.
+7. Hidden diagnostics. As the owner, the device now boots to the main screen, and I can still reach the diagnostic and settings screens from Slice 1 through a hidden touch gesture or the serial command `diag`. Proposal for the gesture: two fingers held on the main screen for 5 s. It must be deliberate enough not to happen by accident and must not collide with any gesture in 02-ui-spec.md §8 (a single tap on the main screen opens the status overlay; a single-finger hold of 5 s on the overlay starts restart-setup), so the two-finger touch must not also open the overlay. Leaving the diagnostic mode returns to the main screen, a restart always boots to the main screen, and stress mode stops when the diagnostic mode is left. Acceptance: FR-007a of specs/001-silent-board-bringup/spec.md.
+
+Requirements covered: UI-01 to UI-05, SYS-06, FR-007a of spec 001, and 02-ui-spec.md §1 to §6, §9, §11, §12.
 
 Edge cases: the marker at the far left and far right of the strip; a prayer time whose leader line is nearly vertical; the longest strings in each text slot (for example "Çevrimdışı, kayıtlı vakitler kullanılıyor", "11 sa 56 dk sonra", "Cemaziyelevvel"); a city name too long for its slot is truncated with an ellipsis before the status text.
 
-Out of scope: real time, real data, Wi-Fi, touch interaction, the setup, connecting and overlay screens, the boot screen beyond what Slice 1 delivered.
+Out of scope: real time, real data, Wi-Fi, touch interaction other than the hidden diagnostic gesture, the setup, connecting and overlay screens, the boot screen beyond what Slice 1 delivered.
 ```
 
 ## Step 2: Clarify
@@ -58,6 +60,8 @@ Constraints:
 - Review loop: after rendering, open each snapshot beside its reference in docs/design/screens/ and compare them yourself; fix differences; only then prepare the owner checklist. Add a script that reports the pixel bounding boxes of the strip, the current column and the marker in a snapshot so geometry can be asserted in tests.
 - Device: a simulated clock module in src/app that the serial commands control (time, speed multiplier, system state, fixture number). The real clock arrives in Slice 5 behind the same interface.
 - Performance target: a full-screen redraw at a period change completes without visible tearing; steady-state CPU use leaves the UI task idle most of each second. State how you will measure both.
+- Hidden diagnostic mode (FR-007a): the diagnostic code stays in lib/core/src/nvp/diag and lib/ui/src/diag and its flash cost counts against the budget. The Slice 1 GT911 reader in src/platform reads only the first touch point; the gesture needs the number of points from status register 0x814E (bits 0 to 3, research R5 of spec 001). The serial command `diag`, which answers "already in diagnostic mode" in Slice 1, now switches from the main screen to the diagnostic screen (specs/001-silent-board-bringup/contracts/serial-console.md).
+- Keep Slice 1's rule: no flash write while a Wi-Fi scan is in progress (decision 0002).
 - Stay within the firmware size budget and report the size.
 ```
 
@@ -95,6 +99,8 @@ Flash the device. Use the serial commands Claude Code lists.
 - [ ] Running the simulated clock at high speed through a full day shows no flicker, no leftover pixels and no jump in the position of the ticking digits.
 - [ ] Fixtures 02 to 09 each match their reference.
 - [ ] Fixtures 10 to 14 each match their reference.
+- [ ] After a restart the device shows the main screen, not the diagnostic screen.
+- [ ] The hidden gesture opens the diagnostic screen, and a single tap on the main screen does not.
 - [ ] No sound.
 
 Send photographs of fixtures 01, 09 and 12 to Claude Code if anything looks off, with a sentence on what differs.

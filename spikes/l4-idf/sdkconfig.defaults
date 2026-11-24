@@ -1,0 +1,29 @@
+# L4 spike configuration. Board basics follow the vendor's IDF Lesson03 sdkconfig (ESP-IDF 5.5.4):
+# QIO 16 MB flash, octal PSRAM at 80 MHz, 240 MHz CPU, 1 kHz tick, 64-byte data cache line.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP32S3_DATA_CACHE_32KB=y
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# What the precompiled Arduino libraries cannot have (research R8, L4):
+# instructions and read-only data run from PSRAM, so flash writes do not stop the cache ...
+CONFIG_SPIRAM_XIP_FROM_PSRAM=y
+# ... and the RGB driver's interrupts (bounce-buffer refill) keep running during flash writes.
+CONFIG_LCD_RGB_ISR_IRAM_SAFE=y
+# Same as the Arduino libraries: resynchronise the DMA at every VSYNC.
+CONFIG_LCD_RGB_RESTART_IN_VSYNC=y
+
+# TLS: certificate checks on, with the built-in CA bundle (SEC-01).
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+CONFIG_ESP_TLS_INSECURE=n
