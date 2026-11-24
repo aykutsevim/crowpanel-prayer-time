@@ -15,6 +15,12 @@ static void test_every_contract_command_parses() {
     TEST_ASSERT_TRUE(parse_command("wifi cancel") == Command::WifiCancel);
     TEST_ASSERT_TRUE(parse_command("wifi forget") == Command::WifiForget);
     TEST_ASSERT_TRUE(parse_command("diag") == Command::Diag);
+    // Diagnostic one-shots used to isolate a display glitch (stack decision log, 2026-11-23).
+    TEST_ASSERT_TRUE(parse_command("test write") == Command::TestWrite);
+    TEST_ASSERT_TRUE(parse_command("TEST  SCAN") == Command::TestScan);
+    TEST_ASSERT_TRUE(parse_command("test https") == Command::TestHttps);
+    TEST_ASSERT_TRUE(parse_command("test mix") == Command::TestMix);
+    TEST_ASSERT_TRUE(parse_command("test") == Command::Unknown);
 }
 
 static void test_case_and_whitespace_are_tolerated() {

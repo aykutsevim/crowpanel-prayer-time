@@ -6,6 +6,10 @@
 void run_selftest_report_tests();
 void run_command_parser_tests();
 void run_touch_judge_tests();
+void run_net_helper_tests();
+void run_wifi_state_tests();
+void run_stress_tests();
+void run_form_tests();
 
 void setUp() {}
 void tearDown() {}
@@ -15,5 +19,9 @@ int main(int, char**) {
     run_selftest_report_tests();
     run_command_parser_tests();
     run_touch_judge_tests();
+    run_net_helper_tests();
+    run_wifi_state_tests();
+    run_stress_tests();
+    run_form_tests();
     return UNITY_END();
 }

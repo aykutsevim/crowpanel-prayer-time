@@ -14,6 +14,10 @@ enum class Command {
     WifiCancel,
     WifiForget,
     Diag,
+    TestWrite,  // one 4 kB scratch write (diagnostic one-shot)
+    TestScan,   // one Wi-Fi scan (diagnostic one-shot)
+    TestHttps,  // one HTTPS request (diagnostic one-shot)
+    TestMix,    // a scan with a write at its start, as one stress cycle (diagnostic one-shot)
     Unknown,
 };
 

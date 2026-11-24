@@ -120,6 +120,25 @@ void add_corners(Writer& w, const CornerResult* corners) {
     w.add("\n");
 }
 
+void add_stress(Writer& w, const ReportInput& in) {
+    if (!in.stress_running && !in.stress_has_run) {
+        w.add("stress: off\n");
+        return;
+    }
+    const StressCounters& s = in.stress;
+    if (in.stress_running) {
+        w.add("stress: %s ", in.stress_paused ? "paused (hotspot open)" : "on");
+    } else {
+        w.add("stress: off, last run ");
+    }
+    w.add("%lu s cycles %lu scan %lu/%lu write %lu/%lu https %lu/%lu/%lu last-error %s\n",
+          static_cast<unsigned long>(s.elapsed_s), static_cast<unsigned long>(s.cycles),
+          static_cast<unsigned long>(s.scan_ok), static_cast<unsigned long>(s.scan_err),
+          static_cast<unsigned long>(s.write_ok), static_cast<unsigned long>(s.write_err),
+          static_cast<unsigned long>(s.https_ok), static_cast<unsigned long>(s.https_err),
+          static_cast<unsigned long>(s.https_skip), s.last_error[0] ? s.last_error : "none");
+}
+
 }  // namespace
 
 size_t format_silence_line(const SilenceLine& silence, char* out, size_t cap) {
@@ -154,13 +173,18 @@ size_t format(const ReportInput& in, char* out, size_t cap) {
     w.add("heap internal: %lu free, %lu largest\n", static_cast<unsigned long>(in.heap_internal_free),
           static_cast<unsigned long>(in.heap_internal_largest));
     w.add("heap psram: %lu free\n", static_cast<unsigned long>(in.heap_psram_free));
-    w.add("stress: %s\n", in.stress_running ? "on" : "off");
+    add_stress(w, in);
     if (in.boot_to_diag_ms == 0) {
         w.add("boot-to-diag: n/a (no display)\n");
     } else {
         w.add("boot-to-diag: %lu ms\n", static_cast<unsigned long>(in.boot_to_diag_ms));
     }
     w.add("uptime: %lu s\n", static_cast<unsigned long>(in.uptime_s));
+    w.add("reset: %s", in.reset_reason != nullptr ? in.reset_reason : "unknown");
+    if (in.coredump_bytes > 0) {
+        w.add(", core dump saved (%lu B)", static_cast<unsigned long>(in.coredump_bytes));
+    }
+    w.add("\n");
     w.add("=== END ===\n");
     return w.length();
 }

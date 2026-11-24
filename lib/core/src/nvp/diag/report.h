@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "nvp/diag/selftest.h"
+#include "nvp/diag/stress.h"
 #include "nvp/diag/touch_judge.h"
 
 namespace nvp::diag {
@@ -46,8 +47,13 @@ struct ReportInput {
     uint32_t heap_internal_largest = 0;
     uint32_t heap_psram_free = 0;
     bool stress_running = false;
+    bool stress_paused = false;   // hotspot open (spec edge case)
+    bool stress_has_run = false;  // counters of the last run are kept after it stops (FR-009)
+    StressCounters stress;
     uint32_t boot_to_diag_ms = 0;  // 0: no display (SC-006)
     uint32_t uptime_s = 0;
+    const char* reset_reason = "unknown";  // why the chip last restarted (power-on, panic, ...)
+    uint32_t coredump_bytes = 0;           // size of a crash record saved in flash, 0 if none
 };
 
 namespace report {
