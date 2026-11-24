@@ -204,7 +204,7 @@ Log the reason for any rejection (SYS-05).
 
 ## 10. HTTP client rules
 
-- HTTPS with certificate verification against a bundled root store (SEC-01). A valid clock is needed first; see TIME-02 for the order of operations.
+- HTTPS with certificate verification against a bundled root store (SEC-01), including the certificate's validity dates (`CONFIG_MBEDTLS_HAVE_TIME_DATE=y`, owner decision OD5-1 of spec 005). A request is made only once the clock is valid. The time fallback of TIME-02 therefore reads only the `Date` header of a plain-HTTP answer (`http://ezanvakti.imsakiyem.com/`, else `http://ezanvakti.emushaf.net/`; both answer port 80 with a redirect and a `Date` header, checked 2026-11-24) and uses nothing else from it.
 - `User-Agent: NamazVaktiPanel/<version> (ESP32-S3; personal device)`. `Accept: application/json`.
 - One request at a time. No parallel connections.
 - Stream-parse JSON with a filter for the needed fields. Never buffer more than 64 kB of a response.
@@ -226,6 +226,7 @@ Log the reason for any rejection (SYS-05).
 | Both mirrors down, store does not cover today | `calculated`, times marked `≈`; back to normal on its own when a mirror returns |
 | No source at all and no coordinates | `no_data` |
 | Power cut, no Wi-Fi afterwards, no RTC module | `no_time` until Wi-Fi returns |
+| Power cut, no Wi-Fi afterwards, the board's clock valid (DIS02170A V1.4) | the time from the board's clock; corrected when Wi-Fi returns (spec 003 OD3-1, spec 005) |
 
 ## 13. Verify before coding
 
