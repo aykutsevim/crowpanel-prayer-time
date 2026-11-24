@@ -14,7 +14,8 @@ Three rules shape everything:
 |---|---|---|
 | 0 | Repository, Spec Kit, constitution, check command | done |
 | 1 | Silent board bring-up ([spec 001](specs/001-silent-board-bringup/spec.md)) | all three stages verified on the device: silence, picture, touch, Wi-Fi setup, 10-minute stress test; close-out in progress |
-| 2–10 | Prayer engine, main screen, Wi-Fi setup, time, data, refresh, settings, release | planned ([roadmap](docs/specification/06-roadmap.md)) |
+| 2 | Prayer-time engine ([spec 002](specs/002-prayer-engine/spec.md)): period, countdown, columns, kerahat, Turkish text; tested to the second over a whole day | done on the development machine |
+| 3–10 | Main screen, Wi-Fi setup, time, data, refresh, settings, release | planned ([roadmap](docs/specification/06-roadmap.md)) |
 
 ## Repository layout
 
@@ -66,8 +67,9 @@ Git, Python 3.11+, `uv`, PlatformIO Core 6.2+, the Spec Kit CLI (`specify`) 1.0.
 | Flash | `pio run -e crowpanel7_advance -t upload` |
 | Serial monitor | `pio device monitor -b 115200` |
 | Render the engineering screens | `pio run -e sim -t exec` |
+| Print the engine's output table | `pio run -e engine_table`, then `python tools/check_engine_table.py` |
 
-`check` runs the tool tests, the silence check, the TLS check, the host tests and the firmware build. It then prints the image size against the 2.9 MiB budget, the size of the diagnostic mode, checks the linked image for audio drivers, and runs the host UI harness. The silence check also runs before every PlatformIO build and test run.
+`check` runs the tool tests, the silence check, the TLS check, the host tests, the engine table check and the firmware build. It then prints the image size against the 2.9 MiB budget, the size of the diagnostic mode, checks the linked image for audio drivers, and runs the host UI harness. The silence check also runs before every PlatformIO build and test run.
 
 If the PlatformIO IDE rewrites `.gitignore` with its own template, restore it with `git checkout -- .gitignore`; `tools/test_repository.py` fails until you do.
 

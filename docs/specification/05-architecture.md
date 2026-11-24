@@ -135,6 +135,11 @@ lib/core/        Pure C++ (no ESP-IDF, FreeRTOS or LVGL headers).
                  Day records, validation, the prayer-time engine, text formatting
                  (durations, dates, period names), settings model, source ranks and
                  merge rules, calibration maths.
+                 src/nvp/engine/: the prayer-time engine from Slice 2: calendar and day
+                 numbers, day records, evaluate() filling one MainView for the main screen,
+                 the shared fixture, the output table (spec 002).
+                 src/nvp/text/: every Turkish string the engine emits (tr.h) and the
+                 formatting of times, durations and dates.
                  src/nvp/diag/: diagnostic logic from Slice 1 (command parser, report,
                  stress schedule, touch judge, backoff, AP password, JSON and form
                  helpers). Permanent product code.
