@@ -55,9 +55,9 @@ static void test_state_and_fixture() {
     TEST_ASSERT_EQUAL_INT(static_cast<int>(Command::StateForce), static_cast<int>(p.command));
     TEST_ASSERT_EQUAL_INT(static_cast<int>(nvp::screen::SystemState::CacheEnding), static_cast<int>(p.state));
     TEST_ASSERT_EQUAL_INT(5, p.number);
-    p = parse_command_line("fixture 14");
+    p = parse_command_line("fixture 17");
     TEST_ASSERT_EQUAL_INT(static_cast<int>(Command::Fixture), static_cast<int>(p.command));
-    TEST_ASSERT_EQUAL_INT(14, p.number);
+    TEST_ASSERT_EQUAL_INT(17, p.number);
 }
 
 static void test_invalid_arguments() {
@@ -65,7 +65,7 @@ static void test_invalid_arguments() {
     expect_cmd("clock speed 3601", Command::InvalidArgument);
     expect_cmd("clock speed fast", Command::InvalidArgument);
     expect_cmd("fixture 0", Command::InvalidArgument);
-    expect_cmd("fixture 15", Command::InvalidArgument);
+    expect_cmd("fixture 18", Command::InvalidArgument);  // 15-17: spec 004 setup screens (FR-009)
     expect_cmd("time set 2026-13-01 00:00:00", Command::InvalidArgument);
     expect_cmd("time set 2026-02-29 00:00:00", Command::InvalidArgument);
     expect_cmd("time set 2026-11-24 24:00:00", Command::InvalidArgument);

@@ -16,6 +16,10 @@
 #include "lvgl.h"
 #include "main/fixture_view.h"
 #include "main/main_screen.h"
+#include "setup/connecting_screen.h"
+#include "setup/setup_screen.h"
+#include "setup/status_overlay.h"
+#include "nvp/net/views.h"
 #include "nvp/screen/fixtures.h"
 #include "nvp/version.h"
 
@@ -154,20 +158,47 @@ int main() {
     settings_screen_update(hotspot);
     failures += !snapshot("settings_hotspot");
 
-    // Main screen: the fourteen reference fixtures (spec 003 FR-020), named after their references.
+    // The seventeen reference fixtures, named after their references: 01-14 the main screen
+    // (spec 003 FR-020), 15-17 setup, connecting and the status overlay (spec 004 FR-009).
     lv_obj_t* main_screen = nvp::ui::main_screen_create();
-    lv_screen_load(main_screen);
+    lv_obj_t* setup_screen = nvp::ui::setup_screen_create();
+    lv_obj_t* connecting_screen = nvp::ui::connecting_screen_create();
     for (const nvp::screen::Fixture& f : nvp::screen::kFixtures) {
         nvp::engine::MainView view;
         nvp::ui::SystemView sys;
         nvp::ui::fixture_view(f.number, view, sys);
-        nvp::ui::main_screen_update(view, sys);
+        switch (f.screen) {
+            case nvp::screen::FixtureScreen::Setup:
+                lv_screen_load(setup_screen);
+                nvp::ui::setup_screen_update(nvp::net::fixture_setup_view());
+                break;
+            case nvp::screen::FixtureScreen::Connecting:
+                lv_screen_load(connecting_screen);
+                nvp::ui::connecting_screen_update(nvp::net::fixture_connecting_view());
+                break;
+            case nvp::screen::FixtureScreen::Overlay:  // over fixture 01's main screen (reference 17)
+                lv_screen_load(main_screen);
+                nvp::ui::fixture_view(1, view, sys);
+                nvp::ui::main_screen_update(view, sys);
+                nvp::ui::overlay_open(nvp::net::fixture_overlay_view());
+                break;
+            case nvp::screen::FixtureScreen::Main:
+                lv_screen_load(main_screen);
+                nvp::ui::main_screen_update(view, sys);
+                break;
+        }
         char name[64];
         std::snprintf(name, sizeof name, "%s", f.reference);
         char* dot = std::strrchr(name, '.');
         if (dot != nullptr) *dot = '\0';
         failures += !snapshot(name);
+        if (f.screen == nvp::screen::FixtureScreen::Overlay) {
+            nvp::ui::overlay_show_confirm(true);  // the confirmation has no reference; reviewed by eye
+            failures += !snapshot("17b-overlay-confirm");
+            nvp::ui::overlay_close();
+        }
     }
+    lv_screen_load(main_screen);
 
     failures += run_redraw_checks();
     failures += run_edge_checks();

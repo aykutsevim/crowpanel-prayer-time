@@ -35,3 +35,7 @@ CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 
 # --- Serial console: keep framework logs to warnings, so the contract's lines stay readable ---
 CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+
+# --- Captive portal (spec 004 research R5): phones open many connections at once. httpd keeps 3
+# sockets for itself; 7 for clients, plus DNS (UDP 53) and the HTTPS client of later slices.
+CONFIG_LWIP_MAX_SOCKETS=16

@@ -2,7 +2,7 @@
 """Side-by-side comparison of rendered fixtures with the reference renders (spec 003 FR-020,
 SC-001, research R9).
 
-For every reference in docs/design/screens/01..14 that has a snapshot in out/snapshots/, writes
+For every reference in docs/design/screens/01..17 that has a snapshot in out/snapshots/, writes
 out/compare/<name>.png: reference | snapshot | difference (differing pixels in white, scaled by
 the size of the difference), and prints one summary line per fixture: the share of pixels that
 differ by more than a small threshold, and the bounding box of the differences.
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     refs = sorted((ROOT / "docs" / "design" / "screens").glob("[01][0-9]-*.png"))
     for ref in refs:
         num = ref.name[:2]
-        if not ("01" <= num <= "14"):
+        if not ("01" <= num <= "17"):
             continue
         if args.only and not ref.name.startswith(args.only):
             continue

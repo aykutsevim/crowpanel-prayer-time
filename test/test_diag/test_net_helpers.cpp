@@ -8,7 +8,6 @@
 #include "nvp/diag/ap_password.h"
 #include "nvp/diag/backoff.h"
 #include "nvp/diag/json.h"
-#include "nvp/diag/portal_json.h"
 
 using namespace nvp::diag;
 
@@ -109,56 +108,9 @@ static void test_ap_password_always_eight_digits() {
 
 // --- Setup page JSON (contracts/setup-portal.md, FR-021, FR-024) ---
 
-static void test_scan_json_sorted_deduplicated_limited() {
-    ScanEntry e[25];
-    for (int i = 0; i < 25; ++i) {
-        std::snprintf(e[i].ssid, sizeof e[i].ssid, "net%02d", i);
-        e[i].rssi = static_cast<int8_t>(-90 + i);  // net24 strongest
-        e[i].secured = true;
-    }
-    std::snprintf(e[3].ssid, sizeof e[3].ssid, "net24");  // weaker duplicate of the strongest
-    e[4].ssid[0] = '\0';  // hidden network: not listed
-    char out[2048];
-    build_scan_json(e, 25, out, sizeof out);
-    TEST_ASSERT_EQUAL_STRING_LEN("{\"networks\":[{\"ssid\":\"net24\",\"rssi\":-66,\"secured\":true},", out, 56);
-    TEST_ASSERT_NULL(std::strstr(out, "\"ssid\":\"\""));
-    int count = 0;
-    for (const char* p = out; (p = std::strstr(p, "\"ssid\"")) != nullptr; ++p) ++count;
-    TEST_ASSERT_EQUAL_INT(20, count);
-    int net24 = 0;
-    for (const char* p = out; (p = std::strstr(p, "\"net24\"")) != nullptr; ++p) ++net24;
-    TEST_ASSERT_EQUAL_INT(1, net24);
-}
-
-static void test_scan_json_escapes_and_open_networks() {
-    ScanEntry e[1];
-    std::snprintf(e[0].ssid, sizeof e[0].ssid, "Kafe \"Ada\"");
-    e[0].rssi = -70;
-    e[0].secured = false;
-    char out[256];
-    build_scan_json(e, 1, out, sizeof out);
-    TEST_ASSERT_EQUAL_STRING("{\"networks\":[{\"ssid\":\"Kafe \\\"Ada\\\"\",\"rssi\":-70,\"secured\":false}]}", out);
-    build_scan_json(e, 0, out, sizeof out);
-    TEST_ASSERT_EQUAL_STRING("{\"networks\":[]}", out);
-}
-
-static void test_status_json_has_no_password() {
-    // The function has no password parameter at all (NET-08); check the shapes.
-    char out[128];
-    build_status_json(PortalState::Setup, "", out, sizeof out);
-    TEST_ASSERT_EQUAL_STRING("{\"state\":\"setup\",\"ssid\":\"\"}", out);
-    build_status_json(PortalState::Trying, "EvAgi", out, sizeof out);
-    TEST_ASSERT_EQUAL_STRING("{\"state\":\"trying\",\"ssid\":\"EvAgi\"}", out);
-    build_status_json(PortalState::Connected, "EvAgi", out, sizeof out);
-    TEST_ASSERT_EQUAL_STRING("{\"state\":\"connected\",\"ssid\":\"EvAgi\"}", out);
-    build_status_json(PortalState::Failed, "Ev\"Agi", out, sizeof out);
-    TEST_ASSERT_EQUAL_STRING("{\"state\":\"failed\",\"ssid\":\"Ev\\\"Agi\"}", out);
-}
+// The portal's JSON bodies moved to nvp/net/portal_json (spec 004): test/test_net/test_scan.cpp.
 
 void run_net_helper_tests() {
-    RUN_TEST(test_scan_json_sorted_deduplicated_limited);
-    RUN_TEST(test_scan_json_escapes_and_open_networks);
-    RUN_TEST(test_status_json_has_no_password);
     RUN_TEST(test_json_plain_text_unchanged);
     RUN_TEST(test_json_escapes_quote_and_backslash);
     RUN_TEST(test_json_escapes_control_characters);

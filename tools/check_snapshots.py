@@ -161,6 +161,52 @@ def check_main(snap_dir: Path, ref_dir: Path) -> list[str]:
     return errors
 
 
+# Setup screens (spec 004 FR-009, contracts/screen-api.md): name -> [(what, colour, search region,
+# expected box x0, y0, x1, y1)], each within 1 px. Colours are 02 §2.1 tokens.
+INK, LINE, PANEL, ALERT = (0xF5, 0xF1, 0xE6), (0x3A, 0x4C, 0x8A), (0x17, 0x25, 0x52), (0xFF, 0x8F, 0x66)
+SETUP_BOXES = {
+    "15-setup-ap": [
+        ("QR square", INK, (480, 60, 799, 370), (508, 86, 775, 353)),
+        ("step circle 1", LINE, (18, 86, 66, 134), (24, 92, 59, 127)),
+        ("step circle 2", LINE, (18, 246, 66, 294), (24, 252, 59, 287)),
+        ("step circle 3", LINE, (18, 312, 66, 360), (24, 318, 59, 353)),
+    ],
+    "17-status-overlay": [
+        ("panel", PANEL, (60, 20, 740, 460), (101, 53, 698, 426)),
+        ("QR square", INK, (520, 100, 699, 270), (544, 122, 675, 253)),
+    ],
+    "17b-overlay-confirm": [
+        ("Baştan kur button", ALERT, (100, 300, 699, 427), (474, 350, 673, 405)),
+    ],
+}
+
+
+def colour_box(rows, colour, region) -> tuple[int, int, int, int] | None:
+    x0, y0, x1, y1 = region
+    xs, ys = [], []
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if rows[y][x] == colour:
+                xs.append(x)
+                ys.append(y)
+    return (min(xs), min(ys), max(xs), max(ys)) if xs else None
+
+
+def check_setup(snap_dir: Path) -> list[str]:
+    errors: list[str] = []
+    for name, boxes in SETUP_BOXES.items():
+        try:
+            _, _, rows = read_png((snap_dir / f"{name}.png").read_bytes())
+        except (OSError, ValueError, zlib.error) as exc:
+            errors.append(f"{name}: cannot read snapshot ({exc})")
+            continue
+        for what, colour, region, expected in boxes:
+            got = colour_box(rows, colour, region)
+            if got is None or any(abs(a - b) > 1 for a, b in zip(got, expected)):
+                errors.append(f"{name}: {what} box {got}, expected {expected} +-1")
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dir", type=Path, default=Path(__file__).resolve().parent.parent / "out" / "snapshots")
@@ -188,6 +234,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {e}")
         return 1
     print(f"Geometry check passed: {len(FIXTURES)} main-screen fixtures (strip, marker, current column) within 1 px.")
+    setup_errors = check_setup(args.dir)
+    if setup_errors:
+        print(f"GEOMETRY CHECK FAILED: {len(setup_errors)} problem(s) in the setup-screen fixtures")
+        for e in setup_errors:
+            print(f"  {e}")
+        return 1
+    print(f"Geometry check passed: setup fixtures 15, 17, 17b (QR squares, circles, panel, button) within 1 px.")
     return 0
 
 

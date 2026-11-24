@@ -10,6 +10,8 @@ void run_fixture_tests();
 void run_rtc_codec_tests();
 void run_sim_clock_tests();
 void run_gesture_tests();
+void run_touch_tests();
+void run_title_glyph_tests();
 
 void setUp() {}
 void tearDown() {}
@@ -23,5 +25,7 @@ int main(int, char**) {
     run_rtc_codec_tests();
     run_sim_clock_tests();
     run_gesture_tests();
+    run_touch_tests();
+    run_title_glyph_tests();
     return UNITY_END();
 }

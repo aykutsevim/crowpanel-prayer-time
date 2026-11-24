@@ -23,6 +23,9 @@ const Fixture kFixtures[kFixtureCount] = {
     {12, "12-state-calculated.png", kCheck, SystemState::Calculated, 0},
     {13, "13-state-time-not-set.png", -1, SystemState::NoTime, 0},
     {14, "14-state-no-data.png", kCheck, SystemState::NoData, 0},
+    {15, "15-setup-ap.png", kCheck, SystemState::Ok, 0, FixtureScreen::Setup},
+    {16, "16-connecting.png", kCheck, SystemState::Ok, 0, FixtureScreen::Connecting},
+    {17, "17-status-overlay.png", kCheck, SystemState::Ok, 0, FixtureScreen::Overlay},
 };
 
 const Fixture* fixture(int number) {

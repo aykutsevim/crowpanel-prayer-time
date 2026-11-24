@@ -94,6 +94,16 @@ Result begin() {
     }
 
     lv_init();
+    // LVGL's built-in pool (64 kB, internal RAM, include/lv_conf.h) is too small once the setup,
+    // connecting and overlay screens with their QR images exist (spec 004: `fixture 17` ran out
+    // of it and crashed in lv_draw_add_task). A second pool in PSRAM takes the rest, so internal
+    // RAM stays free for Wi-Fi and TLS (05 §5). LVGL's TLSF sizes its tables from LV_MEM_SIZE, so
+    // one pool must stay below 64 kB: four pools of 60 kB give 240 kB more.
+    constexpr size_t kPsramPool = 60 * 1024;
+    for (int i = 0; i < 4; ++i) {
+        void* pool = heap_caps_malloc(kPsramPool, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (pool == nullptr || lv_mem_add_pool(pool, kPsramPool) == nullptr) break;
+    }
     lv_tick_set_cb(tick_ms);
     g_display = lv_display_create(board::kLcdWidth, board::kLcdHeight);
     if (g_display == nullptr) {

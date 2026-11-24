@@ -54,4 +54,44 @@ inline constexpr const char* kKerahatLegend = "Kerahat vakti";
 inline constexpr const char* kApproxPrefix = "≈";  // calculated state, before each column time
 inline constexpr const char* kEllipsis = "…";      // U+2026, city truncation
 
+// Setup screen, 02 §7.2 (spec 004 FR-004, FR-005).
+inline constexpr const char* kSetupTitle = "Kurulum";
+inline constexpr const char* kSetupSubtitle = "Wi-Fi ayarını telefonundan yap";
+inline constexpr const char* kSetupStep1 =
+    "Telefonun kamerasıyla QR kodu okut ya da Wi-Fi ayarlarından bu ağa bağlan:";
+inline constexpr const char* kSetupNetworkLabel = "Ağ adı";
+inline constexpr const char* kSetupPasswordLabel = "Şifre";
+inline constexpr const char* kSetupStep2 = "Açılan sayfada evdeki Wi-Fi ağını seç, şifresini yaz, ilini ve ilçeni seç.";
+inline constexpr const char* kSetupStep3Before = "Sayfa kendiliğinden açılmazsa tarayıcıya ";
+inline constexpr const char* kSetupAddress = "192.168.4.1";
+inline constexpr const char* kSetupStep3After = " yaz.";
+inline constexpr const char* kSetupQrCaption = "Bu ağa bağlanmak için okut";
+inline constexpr const char* kFooterWaiting = "Telefonun bağlanması bekleniyor";
+inline constexpr const char* kFooterPhoneJoined = "Telefon bağlandı. Açılan sayfayı doldur.";
+inline constexpr const char* kFooterWrongPassword = "Wi-Fi şifresi kabul edilmedi. Tekrar dene.";
+inline constexpr const char* kFooterNotFound = "Ağ bulunamadı. Yalnızca 2,4 GHz ağlar desteklenir.";
+inline constexpr const char* kFooterOther = "Bağlanılamadı. Tekrar dene.";
+
+// Connecting screen, 02 §7.3 (FR-006).
+inline constexpr const char* kConnectingTitle = "Wi-Fi ağına bağlanılıyor";
+inline constexpr const char* kConnectingNote = "Bu işlem yarım dakika kadar sürebilir.";
+inline constexpr const char* kConnectedTitle = "Bağlandı";
+inline constexpr const char* kConnectedNote = "Saat ve vakitler alınıyor";
+
+// Status overlay and confirmation, 02 §7.4 (FR-007, FR-008).
+inline constexpr const char* kOverlayTitle = "Cihaz durumu";
+inline constexpr const char* kOverlayLabels[8] = {"Konum",       "Vakit kaynağı", "Son güncelleme", "Kayıtlı son gün",
+                                                  "Wi-Fi",       "Ayar adresi",   "Ayar PIN’i",     "Sürüm"};
+inline constexpr const char* kOverlayQrCaption = "Ayar sayfası";
+inline constexpr const char* kOverlayHint = "Kapatmak için dokun. Kurulumu baştan yapmak için 5 saniye basılı tut.";
+inline constexpr const char* kConfirmTitle = "Kurulum baştan yapılsın mı?";
+inline constexpr const char* kConfirmText = "Kayıtlı Wi-Fi ayarı silinir. Vakitler ve konum korunur.";
+inline constexpr const char* kConfirmCancel = "Vazgeç";
+inline constexpr const char* kConfirmStartOver = "Baştan kur";
+inline constexpr const char* kWifiNotConnected = "bağlı değil";
+inline constexpr const char* kDash = "—";  // U+2014, a value that a later slice fills (analysis U3)
+
+// Setup page (02 §10, OD4-4): the mark of an unsupported network. The page has its own copy.
+inline constexpr const char* kUnsupported = "desteklenmiyor";
+
 }  // namespace nvp::text::tr

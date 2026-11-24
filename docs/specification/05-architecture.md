@@ -117,12 +117,12 @@ Chosen in Slice 1 on the evidence of the stress test (`docs/decisions/0002-displ
 | Graphics | **LVGL 9.6.0** (`lvgl/lvgl@9.6.0`), RGB565, PARTIAL mode with one 800 × 40 draw buffer in internal RAM, on core 1 | UI code depends on LVGL only, never on the panel driver. Configured through `include/lv_conf.h` (R9). |
 | Touch | own small GT911 reader in `src/platform/touch_gt911`, written against the GT911 datasheet | no third-party touch library: the reset is behind the auxiliary controller (R5) |
 | I²C | ESP-IDF `i2c_master` driver (`src/platform/i2c_bus`) | one bus for the auxiliary controller and touch |
-| Wi-Fi provisioning | own access point + HTTP server on `esp_wifi`/`esp_netif` and `esp_http_server`; DNS responder added in Slice 4 | a small custom portal, chosen in Slice 1 over a general-purpose Wi-Fi manager library because the page also selects the location and must match `02-ui-spec.md` §10. Slice 1’s paths and NVS keys are the base for Slice 4 (R11, `specs/001-silent-board-bringup/contracts/setup-portal.md`). |
+| Wi-Fi provisioning | own access point + HTTP server on `esp_wifi`/`esp_netif` and `esp_http_server`; DNS responder on an lwIP UDP socket (Slice 4, `src/platform/dns_responder`, answers built by `nvp::net::dns_reply`) | a small custom portal, chosen in Slice 1 over a general-purpose Wi-Fi manager library because the page also selects the location and must match `02-ui-spec.md` §10. Slice 1’s paths and NVS keys are the base for Slice 4 (R11, `specs/001-silent-board-bringup/contracts/setup-portal.md`). |
 | HTTP / TLS | `esp_http_client` with `crt_bundle_attach = esp_crt_bundle_attach` and the full built-in root-certificate bundle (`CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL`) | certificate checks always on. `tools/check_tls.py` rejects `skip_cert_common_name_check`, an `esp_http_client` configuration without a CA, and insecure ESP-TLS options in `sdkconfig*` (decision 0002, SEC-01) |
 | JSON | a streaming parser with field filtering | responses repeat large objects per record |
 | Storage | ESP-IDF `nvs` for settings; LittleFS through the managed component `joltwallet/littlefs` **1.22.3** (`esp_littlefs`) for the day store | 1.22.3 is the version Arduino 3.3.12 used, so a partition formatted by the Arduino builds stays readable (decision 0002) |
 | Prayer calculation | a vendored, pinned port of *adhan* | used only for fallbacks and plausibility checks |
-| QR codes | a small QR generator library | setup and status screens |
+| QR codes | LVGL 9.6.0's own `lv_qrcode` widget (`LV_USE_QRCODE`), which embeds Project Nayuki's `qrcodegen` (MIT) and always uses error correction M; no extra library (spec 004 research R11) | setup and status screens |
 
 Rejected in Slice 1 (R7, R8): LovyanGFX `Bus_RGB` (no bounce-buffer support; a reported blank-screen issue on an Elecrow 7" board was closed without a clear fix); `ESP32_Display_Panel` 1.0.4 (✓ checked 2026-11-20: **no** preset for the Advance board); Arduino-ESP32 as an ESP-IDF component (audio and telemetry dependencies); PSRAM at 120 MHz; two frame buffers.
 
@@ -142,6 +142,9 @@ lib/core/        Pure C++ (no ESP-IDF, FreeRTOS or LVGL headers).
                  formatting of times, durations and dates.
                  src/nvp/screen/: system state choice, status texts, the 14 reference
                  fixtures, the hidden two-finger gesture (Slice 3).
+                 src/nvp/net/: the device's mode machine (setup, connecting, running),
+                 failure classes, DNS answers, scan entries, the Wi-Fi QR payload,
+                 the setup form, place lookup and the setup/overlay views (Slice 4).
                  src/nvp/time/: real-time-clock register codec, simulated clock,
                  time zone (Slice 3).
                  src/nvp/diag/: diagnostic logic from Slice 1 (command parser, report,
@@ -190,7 +193,7 @@ Advance board (16 MB flash), no over-the-air update. Table `partitions/crowpanel
 | Core dump | `coredump`, data/coredump | 0x710000 | 128 kB, the crash record written on a panic (ELF format) |
 | Unallocated | — | 0x730000 | about 8.8 MB, left free on purpose |
 
-NVS keys in use since Slice 1: namespace `wifi`, keys `ssid` and `pass` (the password is write-only, NET-08); namespace `ap`, key `pass` (eight digits, generated on first use, kept until factory reset). Slice 4 and later slices reuse them.
+NVS keys in use since Slice 1: namespace `wifi`, keys `ssid` and `pass` (the password is write-only, NET-08); namespace `ap`, key `pass` (eight digits, generated on first use, kept until factory reset). Slice 4 and later slices reuse them. Slice 4 adds namespace `loc` (`district_id` u32, `province`, `district`) and namespace `sec` (`pin`, six digits, generated on first start, kept until factory reset). After a successful setup the location is written first, then `wifi/pass`, then `wifi/ssid`, each committed, so a power cut never leaves half a setup (spec 004 research R10).
 
 Fonts are the main controllable cost. The number fonts contain only digits, colon and hyphen; text fonts contain the Turkish set in `02-ui-spec.md` §2.2; 4 bits per pixel. Budget for all fonts: 300 kB.
 

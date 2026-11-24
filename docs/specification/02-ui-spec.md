@@ -367,6 +367,8 @@ Layout, top to bottom, single column, 16 px side padding, `bg` background, `ink`
 
 Validation messages (inline, `alert` colour): `Bir ağ seç`, `Şifre en az 8 karakter olmalı`, `İl ve ilçe seç`.
 
+Networks the device cannot join (enterprise/802.1X, WEP, WAPI, OWE, DPP; NET-06) stay in the list, greyed, with `desteklenmiyor` in place of the signal word, and cannot be chosen (owner decision OD4-4, spec 004). The free-text field that `Ağım listede yok` reveals is labelled `Ağ adı` (OD4-5).
+
 The same page layout is reused for the LAN settings page in Slice 8, with extra sections defined in `03-functional-spec.md` §8.
 
 ## 11. Reference renders

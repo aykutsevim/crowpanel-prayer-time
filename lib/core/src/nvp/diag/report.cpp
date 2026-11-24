@@ -187,6 +187,8 @@ size_t format(const ReportInput& in, char* out, size_t cap) {
     w.add("\n");
     if (in.clock_line != nullptr) w.add("clock: %s\n", in.clock_line);    // spec 003
     if (in.screen_line != nullptr) w.add("screen: %s\n", in.screen_line);
+    if (in.mode_line != nullptr) w.add("mode: %s\n", in.mode_line);  // spec 004
+    if (in.location_line != nullptr) w.add("location: %s\n", in.location_line);
     w.add("=== END ===\n");
     return w.length();
 }

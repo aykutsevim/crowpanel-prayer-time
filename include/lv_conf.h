@@ -36,6 +36,10 @@
 #define LV_FONT_MONTSERRAT_20 1
 #define LV_FONT_DEFAULT &lv_font_montserrat_14
 
+/* QR codes of the setup screen and the status overlay (spec 004 research R11): LVGL's own widget,
+ * which embeds Project Nayuki's qrcodegen (MIT) and always uses error correction M (02 §7.2). */
+#define LV_USE_QRCODE 1
+
 #if defined(NVP_SIM) && NVP_SIM
 /* Host harness: test display, screenshot compare to PNG (research R12). */
 #define LV_USE_LOG 1

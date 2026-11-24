@@ -65,10 +65,55 @@ static void test_small_buffer() {
     TEST_ASSERT_EQUAL_STRING("", out);
 }
 
+
+static void test_setup_strings() {  // 02 §7.2-§7.4, OD4-4 (spec 004 FR-004..FR-007)
+    TEST_ASSERT_EQUAL_STRING("Kurulum", tr::kSetupTitle);
+    TEST_ASSERT_EQUAL_STRING("Wi-Fi ayarını telefonundan yap", tr::kSetupSubtitle);
+    TEST_ASSERT_EQUAL_STRING("Telefonun kamerasıyla QR kodu okut ya da Wi-Fi ayarlarından bu ağa bağlan:",
+                             tr::kSetupStep1);
+    TEST_ASSERT_EQUAL_STRING("Ağ adı", tr::kSetupNetworkLabel);
+    TEST_ASSERT_EQUAL_STRING("Şifre", tr::kSetupPasswordLabel);
+    TEST_ASSERT_EQUAL_STRING("Açılan sayfada evdeki Wi-Fi ağını seç, şifresini yaz, ilini ve ilçeni seç.",
+                             tr::kSetupStep2);
+    TEST_ASSERT_EQUAL_STRING("Sayfa kendiliğinden açılmazsa tarayıcıya ", tr::kSetupStep3Before);
+    TEST_ASSERT_EQUAL_STRING("192.168.4.1", tr::kSetupAddress);
+    TEST_ASSERT_EQUAL_STRING(" yaz.", tr::kSetupStep3After);
+    TEST_ASSERT_EQUAL_STRING("Bu ağa bağlanmak için okut", tr::kSetupQrCaption);
+    TEST_ASSERT_EQUAL_STRING("Telefonun bağlanması bekleniyor", tr::kFooterWaiting);
+    TEST_ASSERT_EQUAL_STRING("Telefon bağlandı. Açılan sayfayı doldur.", tr::kFooterPhoneJoined);
+    TEST_ASSERT_EQUAL_STRING("Wi-Fi şifresi kabul edilmedi. Tekrar dene.", tr::kFooterWrongPassword);
+    TEST_ASSERT_EQUAL_STRING("Ağ bulunamadı. Yalnızca 2,4 GHz ağlar desteklenir.", tr::kFooterNotFound);
+    TEST_ASSERT_EQUAL_STRING("Bağlanılamadı. Tekrar dene.", tr::kFooterOther);
+    TEST_ASSERT_EQUAL_STRING("Wi-Fi ağına bağlanılıyor", tr::kConnectingTitle);
+    TEST_ASSERT_EQUAL_STRING("Bu işlem yarım dakika kadar sürebilir.", tr::kConnectingNote);
+    TEST_ASSERT_EQUAL_STRING("Bağlandı", tr::kConnectedTitle);
+    TEST_ASSERT_EQUAL_STRING("Saat ve vakitler alınıyor", tr::kConnectedNote);
+    TEST_ASSERT_EQUAL_STRING("Cihaz durumu", tr::kOverlayTitle);
+    TEST_ASSERT_EQUAL_STRING("Konum", tr::kOverlayLabels[0]);
+    TEST_ASSERT_EQUAL_STRING("Vakit kaynağı", tr::kOverlayLabels[1]);
+    TEST_ASSERT_EQUAL_STRING("Son güncelleme", tr::kOverlayLabels[2]);
+    TEST_ASSERT_EQUAL_STRING("Kayıtlı son gün", tr::kOverlayLabels[3]);
+    TEST_ASSERT_EQUAL_STRING("Wi-Fi", tr::kOverlayLabels[4]);
+    TEST_ASSERT_EQUAL_STRING("Ayar adresi", tr::kOverlayLabels[5]);
+    TEST_ASSERT_EQUAL_STRING("Ayar PIN’i", tr::kOverlayLabels[6]);
+    TEST_ASSERT_EQUAL_STRING("Sürüm", tr::kOverlayLabels[7]);
+    TEST_ASSERT_EQUAL_STRING("Ayar sayfası", tr::kOverlayQrCaption);
+    TEST_ASSERT_EQUAL_STRING("Kapatmak için dokun. Kurulumu baştan yapmak için 5 saniye basılı tut.",
+                             tr::kOverlayHint);
+    TEST_ASSERT_EQUAL_STRING("Kurulum baştan yapılsın mı?", tr::kConfirmTitle);
+    TEST_ASSERT_EQUAL_STRING("Kayıtlı Wi-Fi ayarı silinir. Vakitler ve konum korunur.", tr::kConfirmText);
+    TEST_ASSERT_EQUAL_STRING("Vazgeç", tr::kConfirmCancel);
+    TEST_ASSERT_EQUAL_STRING("Baştan kur", tr::kConfirmStartOver);
+    TEST_ASSERT_EQUAL_STRING("bağlı değil", tr::kWifiNotConnected);
+    TEST_ASSERT_EQUAL_STRING("desteklenmiyor", tr::kUnsupported);
+    TEST_ASSERT_EQUAL_STRING("—", tr::kDash);
+}
+
 void run_state_text_tests() {
     RUN_TEST(test_constants);
     RUN_TEST(test_status_text_per_state);
     RUN_TEST(test_alert_colour_states);
     RUN_TEST(test_icons);
     RUN_TEST(test_small_buffer);
+    RUN_TEST(test_setup_strings);
 }

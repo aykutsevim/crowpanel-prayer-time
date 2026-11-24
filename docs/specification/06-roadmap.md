@@ -59,6 +59,7 @@ Order matters. The early slices remove the largest risks first: can the board sh
 **Delivers.** Access point with generated password; setup screen with QR code; captive portal page with network scan, password entry and province/district selection from the bundled list; connection attempt with classified errors; stored credentials and location; reconnect with backoff; status overlay; restart-setup flow; the place-list generator and the generated list. It builds on Slice 1’s Wi-Fi setup rather than replacing it: the same NVS keys (`wifi/ssid`, `wifi/pass`, `ap/pass`) and the same portal paths, extended to the full NET-04 set (FR-025 of spec 001).
 **Done when.** The owner completes setup from an iPhone and from an Android phone, sees each error message by provoking it, power-cycles the device and sees it reconnect, and returns to setup through the overlay.
 **Out of scope.** Using the location for anything yet; the settings page.
+**Outcome.** Spec 004. The device enters setup when Wi-Fi details or a location are missing (a board set up in Slice 1 goes to setup once, OD4-1). A wildcard DNS responder and a catch-all `302` open the page on the phone; the page is 4.4 kB gzipped and the bundled place list 7.9 kB (81 provinces, 1003 entries; the 134 districts without their own Diyanet times carry their centre's id, OD4-3). One pure mode machine in `lib/core/src/nvp/net` replaces Slice 1's diagnostic Wi-Fi machine. QR codes come from LVGL's own widget.
 
 ## Slice 5: Real time
 

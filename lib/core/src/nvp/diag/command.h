@@ -33,7 +33,7 @@ enum class Command {
     ClockRun,
     StateForce,  // force a system state (cache_ending takes 0..7 stored days)
     StateAuto,
-    Fixture,     // show reference fixture 1..14
+    Fixture,     // show reference fixture 1..17 (15-17: spec 004 setup screens)
     FixtureOff,
     InvalidArgument,  // a known command with a bad or missing argument
     Unknown,

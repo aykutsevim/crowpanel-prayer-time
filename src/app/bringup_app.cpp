@@ -13,6 +13,10 @@
 #include "main/fixture_view.h"
 #include "main/main_screen.h"
 #include "main/main_view.h"
+#include "nvp/net/views.h"
+#include "setup/connecting_screen.h"
+#include "setup/setup_screen.h"
+#include "setup/status_overlay.h"
 #include "nvp/diag/report.h"
 #include "nvp/diag/selftest.h"
 #include "nvp/diag/touch_judge.h"
@@ -67,17 +71,40 @@ TouchState g_touch;
 char g_status[48] = "";
 
 // --- Spec 003: the main screen is the start screen; diagnostics are a hidden mode (FR-022). ---
+// Spec 004: in the product mode the screen follows the network worker's mode: setup, connecting,
+// or the main screen with its status overlay (03 §1, 02 §7, FR-001, FR-004..FR-008).
 enum class Mode : uint8_t { Main, Diagnostic };
 Mode g_mode = Mode::Main;
+enum class Product : uint8_t { None, Main, Setup, Connecting };
+Product g_product = Product::None;
 lv_obj_t* g_main_screen = nullptr;
-nvp::screen::TwoFingerHold g_gesture;
-bool g_enter_diag = false;  // set by the gesture inside the touch callback, acted on in loop()
+lv_obj_t* g_setup_screen = nullptr;
+lv_obj_t* g_connecting_screen = nullptr;
+// Touch (02 §8, research R12): classified inside the touch callback, acted on in loop().
+nvp::screen::TouchClassifier g_classifier;
+nvp::screen::Touch g_touch_event = nvp::screen::Touch::None;
+int16_t g_tap_x = 0, g_tap_y = 0;
+uint32_t g_last_touch = 0;
+uint32_t g_confirm_shown_at = 0;
+bool g_log_lvgl_memory = true;  // one line after start-up and after each fixture (spec 004 T068)
+
+void log_lvgl_memory() {
+    lv_mem_monitor_t m;
+    lv_mem_monitor(&m);
+    platform::console::printf("[%8lu] lvgl memory: %lu of %lu B used (%u %%), largest free %lu B\n",
+                              static_cast<unsigned long>(platform::sysinfo::uptime_ms()),
+                              static_cast<unsigned long>(m.total_size - m.free_size),
+                              static_cast<unsigned long>(m.total_size), static_cast<unsigned>(m.used_pct),
+                              static_cast<unsigned long>(m.free_biggest_size));
+}
+constexpr uint32_t kOverlayTimeoutMs = 20000;    // 02 §7.4
+constexpr uint32_t kStartOverTimeoutMs = 15000;  // 02 §7.4: no response counts as Vazgeç
 
 // Developer overrides (SYS-06, contracts/serial-console.md).
 bool g_forced = false;
 nvp::screen::SystemState g_forced_state = nvp::screen::SystemState::Ok;
 int16_t g_forced_days = 0;
-int g_fixture = 0;  // 1..14 while a fixture is shown, else 0
+int g_fixture = 0;  // 1..17 while a fixture is shown, else 0
 
 nvp::diag::SilenceLine silence_line() {
     const platform::silence::SilenceState& s = platform::silence::silence_state();
@@ -154,6 +181,66 @@ void update_main() {
     nvp::ui::main_screen_update(v, s);
 }
 
+nvp::net::OverlayView overlay_view(const net::Snapshot& n) {
+    if (g_fixture == 17) return nvp::net::fixture_overlay_view();
+    nvp::net::OverlayInput in;
+    if (n.has_location) {
+        in.province = n.location.province;
+        in.district = n.location.district;
+    }
+    in.wifi_up = n.wifi_up;
+    in.ssid = n.ssid;
+    in.rssi = n.rssi;
+    in.ip = n.ip;
+    in.version = nvp::kFirmwareVersion;
+    in.show_qr = false;  // no settings page until Slice 8 (OD4-2)
+    return nvp::net::make_overlay_view(in);
+}
+
+Product wanted_product(const net::Snapshot& n) {
+    if (g_fixture == 15) return Product::Setup;
+    if (g_fixture == 16) return Product::Connecting;
+    if (g_fixture != 0) return Product::Main;
+    switch (n.mode) {
+        case nvp::net::Mode::Setup: return Product::Setup;
+        case nvp::net::Mode::Connecting:
+        case nvp::net::Mode::Grace: return Product::Connecting;
+        default: return Product::Main;
+    }
+}
+
+// Loads the screen the mode asks for and updates it; only what changed is redrawn (UI-03).
+void update_product() {
+    const net::Snapshot n = net::snapshot();
+    const Product want = wanted_product(n);
+    if (want != g_product) {
+        if (want != Product::Main) nvp::ui::overlay_close();
+        lv_obj_t* scr = want == Product::Setup ? g_setup_screen : want == Product::Connecting ? g_connecting_screen
+                                                                                                : g_main_screen;
+        if (scr != nullptr) lv_screen_load(scr);
+        g_product = want;
+    }
+    switch (g_product) {
+        case Product::Setup:
+            nvp::ui::setup_screen_update(g_fixture == 15 ? nvp::net::fixture_setup_view()
+                                                         : nvp::net::make_setup_view(n.ap_ssid, n.hotspot_password,
+                                                                                     n.phones, n.failure));
+            break;
+        case Product::Connecting:
+            nvp::ui::connecting_screen_update(g_fixture == 16 ? nvp::net::fixture_connecting_view()
+                                                              : nvp::net::make_connecting_view(
+                                                                    n.attempt_ssid, n.mode == nvp::net::Mode::Grace));
+            break;
+        case Product::Main:
+            update_main();
+            if (g_fixture == 17 && !nvp::ui::overlay_is_open()) nvp::ui::overlay_open(overlay_view(n));
+            if (nvp::ui::overlay_is_open()) nvp::ui::overlay_update(overlay_view(n));
+            break;
+        case Product::None:
+            break;
+    }
+}
+
 void print_report() {
     const net::Snapshot n = net::snapshot();
     update_wifi_test(n);
@@ -184,17 +271,45 @@ void print_report() {
     clock::describe(clock_line, sizeof clock_line);
     in.clock_line = clock_line;
     char screen_line[48];
-    if (g_mode == Mode::Main) {
-        std::snprintf(screen_line, sizeof screen_line, "main (state %s%s)", nvp::screen::state_name(current_state()),
-                      g_fixture != 0 ? ", fixture" : "");
+    if (g_mode == Mode::Main && g_product == Product::Setup) {
+        std::snprintf(screen_line, sizeof screen_line, "setup%s", g_fixture != 0 ? " (fixture)" : "");
+    } else if (g_mode == Mode::Main && g_product == Product::Connecting) {
+        std::snprintf(screen_line, sizeof screen_line, "connecting%s", g_fixture != 0 ? " (fixture)" : "");
+    } else if (g_mode == Mode::Main) {
+        std::snprintf(screen_line, sizeof screen_line, "main (state %s%s%s)", nvp::screen::state_name(current_state()),
+                      g_fixture != 0 ? ", fixture" : "", nvp::ui::overlay_is_open() ? ", overlay" : "");
     } else {
         std::snprintf(screen_line, sizeof screen_line, "%s",
                       g_screen == ui::ActiveScreen::Settings ? "settings" : "diagnostic");
     }
     in.screen_line = screen_line;
+    // Spec 004: mode, phones, last result and the stored location; names and classes only (FR-023).
+    char mode_line[64];
+    switch (n.mode) {
+        case nvp::net::Mode::Setup:
+            std::snprintf(mode_line, sizeof mode_line, "setup, phones %u, last %s", static_cast<unsigned>(n.phones),
+                          nvp::net::failure_name(n.failure));
+            break;
+        case nvp::net::Mode::RunJoining: std::snprintf(mode_line, sizeof mode_line, "run, joining"); break;
+        case nvp::net::Mode::RunUp: std::snprintf(mode_line, sizeof mode_line, "run, connected"); break;
+        case nvp::net::Mode::RunBackoff: std::snprintf(mode_line, sizeof mode_line, "run, waiting to retry"); break;
+        case nvp::net::Mode::RunNoRadio: std::snprintf(mode_line, sizeof mode_line, "run, no radio (silence)"); break;
+        default: std::snprintf(mode_line, sizeof mode_line, "%s", nvp::net::mode_name(n.mode)); break;
+    }
+    in.mode_line = mode_line;
+    char location_line[100];
+    if (n.has_location) {
+        std::snprintf(location_line, sizeof location_line, "%s / %s (%lu)", n.location.province, n.location.district,
+                      static_cast<unsigned long>(n.location.district_id));
+    } else {
+        std::snprintf(location_line, sizeof location_line, "none");
+    }
+    in.location_line = location_line;
     nvp::diag::report::format(in, g_report, sizeof g_report);
     platform::console::write(g_report);
 }
+
+void enter_main();
 
 void set_status(const char* text) { std::snprintf(g_status, sizeof g_status, "%s", text); }
 
@@ -217,6 +332,7 @@ void wifi_setup() {
         return;
     }
     set_status("Starting the hotspot");
+    enter_main();  // the product setup screen shows the device's network (spec 004 assumption)
 }
 
 void cmd_stress_on() { stress(true); }
@@ -256,8 +372,9 @@ void update_view();
 // --- Modes (spec 003 FR-022, FR-023) ---
 
 void enter_diag() {
-    g_enter_diag = false;
     if (g_mode == Mode::Diagnostic || g_diag_screen == nullptr) return;
+    nvp::ui::overlay_close();
+    g_product = Product::None;
     g_mode = Mode::Diagnostic;
     g_screen = ui::ActiveScreen::Diagnostic;
     g_confirm = ui::Confirm::None;
@@ -270,8 +387,8 @@ void enter_main() {
     if (g_mode == Mode::Main || g_main_screen == nullptr) return;
     if (net::snapshot().stress_running) stress(false);  // leaving the mode stops stress (FR-023)
     g_mode = Mode::Main;
-    update_main();
-    lv_screen_load(g_main_screen);
+    g_product = Product::None;  // update_product() loads the screen of the worker's mode
+    update_product();
     platform::console::write("main screen\n");
 }
 
@@ -380,6 +497,7 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
             const int64_t local = static_cast<int64_t>(nvp::engine::to_day_number(nvp::engine::Date{2026, 11, 17})) * 86400 + sod;
             clock::use_sim(local, true);
             platform::console::printf("fixture %ld: %s\n", static_cast<long>(c.number), f->reference);
+            g_log_lvgl_memory = true;  // after the next update has built the screen
             break;
         }
         case Command::FixtureOff:
@@ -391,7 +509,10 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
         default:
             return;
     }
-    if (g_mode == Mode::Main) update_main();
+    if (g_mode == Mode::Main) {
+        if (c.command == Command::FixtureOff) nvp::ui::overlay_close();
+        update_product();
+    }
 }
 
 const ConsoleHandlers kHandlers = [] {
@@ -449,9 +570,17 @@ void on_confirm_yes(void*) {
 bool read_touch(int16_t* x, int16_t* y) {
     const bool pressed = platform::touch::read_point(x, y);
     if (g_mode == Mode::Main) {
-        // Hidden gesture: two fingers held for 5 s (spec 003 FR-022). The main screen has no
-        // clickable object, so a single tap does nothing. The switch happens in loop().
-        if (g_gesture.feed(platform::sysinfo::uptime_ms(), platform::touch::last_points())) g_enter_diag = true;
+        // Tap, 5 s hold and the hidden two-finger hold (02 §8, spec 003 FR-022, spec 004 R12).
+        // No product object is clickable in LVGL; loop() acts on the classified gesture.
+        const uint32_t now = platform::sysinfo::uptime_ms();
+        const uint8_t points = pressed ? platform::touch::last_points() : 0;
+        if (pressed) {
+            g_tap_x = *x;
+            g_tap_y = *y;
+            g_last_touch = now;
+        }
+        const nvp::screen::Touch t = g_classifier.feed(now, points, *x, *y);
+        if (t != nvp::screen::Touch::None) g_touch_event = t;
     } else if (pressed && !g_touch.pressed && g_screen == ui::ActiveScreen::Diagnostic) {
         g_judge.judge(*x, *y);
     }
@@ -587,9 +716,12 @@ void start() {
         update_view();
         // Spec 003: the device starts on the main screen; diagnostics are a hidden mode (FR-019).
         g_main_screen = nvp::ui::main_screen_create();
+        g_setup_screen = nvp::ui::setup_screen_create();          // spec 004 FR-004
+        g_connecting_screen = nvp::ui::connecting_screen_create();  // spec 004 FR-006
         g_mode = Mode::Main;
         update_main();
         lv_screen_load(g_main_screen);
+        g_product = Product::Main;
         platform::display::refresh_now();
         g_boot_to_diag_ms = platform::sysinfo::uptime_ms();
         platform::console::printf("[%8lu] main screen shown\n", static_cast<unsigned long>(g_boot_to_diag_ms));
@@ -608,16 +740,65 @@ void start() {
     net::start(can_use_radio_and_load());
 }
 
+// Acts on one classified gesture of the product mode (02 §8; spec 004 FR-007, FR-008, FR-020).
+void handle_touch(uint32_t now) {
+    using nvp::screen::Touch;
+    const Touch t = g_touch_event;
+    g_touch_event = Touch::None;
+    if (t == Touch::TwoFingerHold5s && g_product == Product::Main) {
+        enter_diag();
+        return;
+    }
+    if (g_product != Product::Main) return;  // setup and connecting screens: nothing (02 §8)
+    const bool open = nvp::ui::overlay_is_open();
+    const bool confirm = nvp::ui::overlay_confirm_shown();
+    if (open && confirm && now - g_confirm_shown_at >= kStartOverTimeoutMs) {
+        nvp::ui::overlay_close();  // no response for 15 s counts as Vazgeç
+        return;
+    }
+    if (open && !confirm && now - g_last_touch >= kOverlayTimeoutMs) {
+        nvp::ui::overlay_close();
+        return;
+    }
+    if (t == Touch::Tap) {
+        if (!open) {
+            nvp::ui::overlay_open(overlay_view(net::snapshot()));
+        } else if (!confirm) {
+            nvp::ui::overlay_close();
+        } else {
+            switch (nvp::ui::overlay_hit(g_tap_x, g_tap_y)) {
+                case nvp::ui::OverlayHit::Cancel:
+                    nvp::ui::overlay_close();
+                    break;
+                case nvp::ui::OverlayHit::StartOver:
+                    nvp::ui::overlay_close();
+                    net::request_start_over();
+                    platform::console::write("start over: Wi-Fi details will be erased (MODE-06)\n");
+                    break;
+                case nvp::ui::OverlayHit::None:
+                    break;
+            }
+        }
+    } else if (t == Touch::Hold5s && open && !confirm) {
+        nvp::ui::overlay_show_confirm(true);
+        g_confirm_shown_at = now;
+    }
+}
+
 void loop() {
     serial_console_poll(kHandlers);
     if (!g_display_ok) return;
     static uint32_t last = 0;
     const uint32_t now = platform::sysinfo::uptime_ms();
-    if (g_enter_diag) enter_diag();
+    if (g_mode == Mode::Main) handle_touch(now);
     if (now - last >= kViewRefreshMs) {
         last = now;
         if (g_mode == Mode::Main) {
-            update_main();  // touches only what changed (UI-03)
+            update_product();  // touches only what changed (UI-03)
+            if (g_log_lvgl_memory) {
+                g_log_lvgl_memory = false;
+                log_lvgl_memory();
+            }
         } else {
             update_view();
         }

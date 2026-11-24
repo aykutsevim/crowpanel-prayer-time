@@ -1,5 +1,6 @@
 // Fixed-cell numbers (02-ui-spec.md §2.2; spec 003 FR-004, research R4): every character sits
-// centred in its own cell, digit cell = round(0.475 × size), colon cell = round(0.252 × size), so
+// centred in its own cell, digit cell = round(0.475 × size), colon and dot cell = round(0.252 × size),
+// space = the font's space (spec 004), so
 // ticking digits never move. One LVGL object per value; it redraws only when its text or colour
 // changes.
 #pragma once

@@ -87,5 +87,18 @@ class PatternCheckTest(unittest.TestCase):
         self.assertTrue(any("CYAN" in e for e in cs.check(rows)))
 
 
+class SetupBoxesTest(unittest.TestCase):
+    """The expected boxes of the setup fixtures are the references' own (spec 004 FR-009)."""
+
+    def test_references_meet_their_boxes(self) -> None:
+        ref = Path(__file__).resolve().parent.parent / "docs" / "design" / "screens"
+        for name in ("15-setup-ap", "17-status-overlay"):
+            _, _, rows = cs.read_png((ref / f"{name}.png").read_bytes())
+            for what, colour, region, expected in cs.SETUP_BOXES[name]:
+                got = cs.colour_box(rows, colour, region)
+                self.assertIsNotNone(got, f"{name} {what}")
+                self.assertTrue(all(abs(a - b) <= 1 for a, b in zip(got, expected)), f"{name} {what}: {got}")
+
+
 if __name__ == "__main__":
     unittest.main()
