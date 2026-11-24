@@ -52,6 +52,7 @@ struct MainView {
     // Status
     bool has_data = false;       // false: "no data" (ENG-08); only the clock and date are filled
     bool approx_bounds = false;  // a missing neighbour day was substituted (ENG-04)
+    bool has_stored_times = false;  // today's (or the no-time caller's) record was usable (spec 003)
 
     // Hero (02 §4.1 M5..M15)
     char clock_hhmm[6] = {};
@@ -78,6 +79,7 @@ struct MainView {
     Column columns[kVakitCount];
 
     // Day strip (02 §3, §4.2)
+    uint16_t strip_minutes[kVakitCount] = {};  // today's six times for strip, separators and leaders
     int32_t now_second_of_day = 0;
     KerahatInterval kerahat[3];  // after Güneş, before Öğle, before Akşam
 };
@@ -86,5 +88,11 @@ inline constexpr int32_t kEnteredSeconds = 5 * 60;  // "vakit girdi" for the fir
 inline constexpr uint8_t kMaxKerahatMinutes = 90;
 
 void evaluate(const Input& in, MainView& out);
+
+// Without a valid clock (02-ui-spec.md §6 row 1, reference 13; spec 003 research R7): fills only
+// what stored times allow: the six columns as Later with empty notes, and the kerahat intervals
+// for the strip. No clock, date, period or countdown text. `stored` may be null or invalid, in
+// which case nothing but the column names is filled.
+void evaluate_no_time(const DayRecord* stored, const Settings& settings, MainView& out);
 
 }  // namespace nvp::engine

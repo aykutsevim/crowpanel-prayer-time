@@ -10,6 +10,7 @@ void run_net_helper_tests();
 void run_wifi_state_tests();
 void run_stress_tests();
 void run_form_tests();
+void run_command_args_tests();
 
 void setUp() {}
 void tearDown() {}
@@ -23,5 +24,6 @@ int main(int, char**) {
     run_wifi_state_tests();
     run_stress_tests();
     run_form_tests();
+    run_command_args_tests();
     return UNITY_END();
 }

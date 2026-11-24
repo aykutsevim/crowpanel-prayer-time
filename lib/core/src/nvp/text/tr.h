@@ -36,4 +36,22 @@ inline constexpr const char* kHijriMonths[13] = {
     "",       "Muharrem", "Safer",   "Rebiülevvel", "Rebiülahir", "Cemaziyelevvel", "Cemaziyelahir",
     "Recep",  "Şaban",    "Ramazan", "Şevval",      "Zilkade",    "Zilhicce"};
 
+// 02 §6 and §4.1: status row and hero texts of the system states (spec 003 FR-011, FR-012).
+inline constexpr const char* kStatusNoTime = "Saat alınamadı, Wi-Fi bekleniyor";
+inline constexpr const char* kStatusNoData = "Vakitler alınamadı";
+inline constexpr const char* kStatusCalculated = "Yaklaşık vakitler, hesaplama ile";
+inline constexpr const char* kStatusCacheEndingPrefix = "Kayıtlı vakitler ";
+inline constexpr const char* kStatusCacheEndingDays = " gün sonra bitiyor";
+inline constexpr const char* kStatusCacheEndingToday = "Kayıtlı vakitler bugün bitiyor";
+inline constexpr const char* kStatusOffline = "Çevrimdışı, kayıtlı vakitler kullanılıyor";
+inline constexpr const char* kStatusLastUpdate = "Son güncelleme ";
+inline constexpr const char* kHeroNoTimeTitle = "Saat eşitleniyor";
+inline constexpr const char* kHeroNoTimeDate = "Saat bekleniyor";
+inline constexpr const char* kHeroNoTimeLabel = "Wi-Fi bağlantısı bekleniyor";
+inline constexpr const char* kHeroNoDataTitle = "Vakitler alınamadı";
+inline constexpr const char* kHeroNoDataLabel = "Wi-Fi ve konum ayarını kontrol edin";
+inline constexpr const char* kKerahatLegend = "Kerahat vakti";
+inline constexpr const char* kApproxPrefix = "≈";  // calculated state, before each column time
+inline constexpr const char* kEllipsis = "…";      // U+2026, city truncation
+
 }  // namespace nvp::text::tr

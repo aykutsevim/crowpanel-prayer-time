@@ -185,6 +185,8 @@ size_t format(const ReportInput& in, char* out, size_t cap) {
         w.add(", core dump saved (%lu B)", static_cast<unsigned long>(in.coredump_bytes));
     }
     w.add("\n");
+    if (in.clock_line != nullptr) w.add("clock: %s\n", in.clock_line);    // spec 003
+    if (in.screen_line != nullptr) w.add("screen: %s\n", in.screen_line);
     w.add("=== END ===\n");
     return w.length();
 }
