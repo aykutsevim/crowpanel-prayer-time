@@ -33,3 +33,6 @@ secrets.ini
 .env
 # Factory flash backups may hold Wi-Fi details stored by the vendor firmware
 backup/
+
+# Generated from data/ by tools/gen_web.py before each firmware build (spec 004 R7)
+src/generated/
