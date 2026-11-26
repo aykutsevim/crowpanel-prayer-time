@@ -9,7 +9,11 @@
 namespace platform::https_fetch {
 namespace {
 
-constexpr int kTimeoutMs = 15000;
+// Spec 007 FR-010 (04 §5.3): 10 s to connect, 15 s per read. ESP-IDF 5.5.5 has one timeout_ms, used
+// by esp_transport_connect(); esp_http_client_set_timeout_ms() changes it once the connection is open
+// (components/esp_http_client/esp_http_client.c, research R12).
+constexpr int kConnectTimeoutMs = 10000;
+constexpr int kReadTimeoutMs = 15000;
 constexpr int kChunk = 1024;
 
 uint32_t internal_free_min() {
@@ -30,7 +34,7 @@ nvp::providers::HttpResult Client::get(const char* url, nvp::providers::HttpBody
     esp_http_client_config_t cfg = {};
     cfg.url = url;
     cfg.crt_bundle_attach = esp_crt_bundle_attach;  // verification on: built-in CA bundle (SEC-01)
-    cfg.timeout_ms = kTimeoutMs;
+    cfg.timeout_ms = kConnectTimeoutMs;
     cfg.user_agent = nvp::kUserAgent;  // SEC-03
     cfg.disable_auto_redirect = true;
     cfg.buffer_size = kChunk;
@@ -48,6 +52,7 @@ nvp::providers::HttpResult Client::get(const char* url, nvp::providers::HttpBody
         error_ = esp_err_to_name(err);
         r.outcome = err == ESP_ERR_HTTP_CONNECTING ? HttpOutcome::Timeout : HttpOutcome::Connect;
     } else {
+        esp_http_client_set_timeout_ms(client, kReadTimeoutMs);
         esp_http_client_fetch_headers(client);
         r.status = esp_http_client_get_status_code(client);
         body.on_status(r.status);

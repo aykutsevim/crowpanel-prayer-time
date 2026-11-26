@@ -559,6 +559,7 @@ void drive_data() {
     t.time_valid = app::clock::time_valid();
     t.has_location = g_has_location;
     t.district = g_location.district_id;
+    t.district_name = g_location.district;
     t.before_save = before_store_write;
     app::data::worker_tick(t);
 }
@@ -623,7 +624,7 @@ void worker(void*) {
     wifi::hotspot_ssid(g_ap_ssid);
     wifi::hotspot_password(g_ap_pass);
     g_has_location = platform::settings::load_location(g_location);
-    app::data::worker_start(g_has_location, g_location.district_id, before_store_write);  // spec 006 T019: load the store
+    app::data::worker_start(g_has_location, g_location.district_id, g_location.district, before_store_write);  // spec 006 T019: load the store
     apply(Event::Boot);
     for (;;) {
         bool setup = false, cancel = false, start_over = false, stress = false, t_write = false;

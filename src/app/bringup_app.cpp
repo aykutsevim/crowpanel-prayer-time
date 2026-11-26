@@ -27,6 +27,7 @@
 #include "nvp/screen/gesture.h"
 #include "nvp/screen/system_state.h"
 #include "nvp/store/store.h"
+#include "nvp/store/refresh_state.h"
 #include "nvp/time/rtc_codec.h"
 #include "nvp/time/zone.h"
 #include "nvp/version.h"
@@ -166,7 +167,10 @@ void build_main_view(nvp::engine::MainView& v, nvp::ui::SystemView& s) {
         if (n.valid) {
             nvp::engine::Input in;
             in.now = moment_of(n.local);
-            if (clock::source() == clock::Source::Real) data::note_today(in.now.date);  // the worker's "today"
+            if (clock::source() == clock::Source::Real) {  // the worker's "today" and the zone's offset
+                const int64_t utc = platform::systime::utc_us() / 1000000;
+                data::note_today(in.now.date, static_cast<int32_t>(n.local - utc));
+            }
             const data::Around a = data::around(in.now.date);
             in.yesterday = a.present[0] ? &a.rec[0] : nullptr;
             in.today = a.present[1] ? &a.rec[1] : nullptr;
@@ -174,8 +178,13 @@ void build_main_view(nvp::engine::MainView& v, nvp::ui::SystemView& s) {
             st.today_present = a.present[1];
             // The real rank: 40 for İmsakiyem; the default 0 would choose `calculated` (analysis U1).
             if (a.present[1]) st.today_rank = nvp::engine::rank(a.rec[1].source);
-            st.refresh_failed_or_wifi_down = false;  // cache_ending stays forced-only until Slice 7
-            st.stored_days_after_today = 400;
+            // Spec 007 FR-019: the last refresh did not reach its goal, or Wi-Fi is down; the
+            // consecutive stored days after today (any source).
+            const data::Summary last = data::summary();
+            const bool refresh_failed = last.last_outcome != 0 &&
+                                        last.last_outcome != static_cast<uint8_t>(nvp::store::RefreshOutcome::Complete);
+            st.refresh_failed_or_wifi_down = refresh_failed || ns.wifi_down_ms > 0;
+            st.stored_days_after_today = static_cast<int16_t>(data::stored_days_after(in.now.date));
             st.wifi_down_minutes = static_cast<int32_t>(ns.wifi_down_ms / 60000);
             nvp::engine::evaluate(in, v);
             // Son güncelleme: HH:MM when the last refresh was today, else DD.MM (02 §6, FR-013).
@@ -362,7 +371,7 @@ void print_report() {
     }
     in.location_line = location_line;
     // Spec 006 (contracts/serial-console.md): the store summary.
-    char data_line[128];
+    char data_line[176];
     {
         const data::Summary sum = data::summary();
         nvp::diag::DataLine d;
@@ -385,6 +394,16 @@ void print_report() {
             d.refresh_minute = static_cast<uint8_t>((r.second_of_day / 60) % 60);
             const int64_t utc_now = platform::systime::utc_us() / 1000000;
             d.minutes_ago = utc_now > sum.last_refresh_utc ? static_cast<uint32_t>((utc_now - sum.last_refresh_utc) / 60) : 0;
+        }
+        if (sum.last_outcome != 0)
+            d.outcome = nvp::store::refresh_outcome_text(static_cast<nvp::store::RefreshOutcome>(sum.last_outcome));
+        if (sum.next_utc > 0) {
+            const nvp::engine::Moment nx = moment_of(clock::to_local(sum.next_utc));
+            d.has_next = true;
+            d.next_day = nx.date.day;
+            d.next_month = nx.date.month;
+            d.next_hour = static_cast<uint8_t>(nx.second_of_day / 3600);
+            d.next_minute = static_cast<uint8_t>((nx.second_of_day / 60) % 60);
         }
         nvp::diag::format_data_line(d, data_line, sizeof data_line);
     }
@@ -634,6 +653,18 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
             return;
         case Command::DataErase:
             data::request_erase();
+            return;
+        case Command::DataBlock:  // spec 007 (contracts/serial-console.md, R10)
+            data::request_block(static_cast<int>(c.number), true);
+            return;
+        case Command::DataUnblock:
+            data::request_block(static_cast<int>(c.number), false);
+            return;
+        case Command::DataPlan:
+            data::request_plan();
+            return;
+        case Command::DataCalib:
+            data::request_calib();
             return;
         case Command::TimeJitter:
             g_jitter_until = platform::sysinfo::uptime_ms() + static_cast<uint32_t>(c.number) * 1000;

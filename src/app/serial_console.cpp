@@ -46,6 +46,8 @@ void serial_console_print_help() {
         "  fixture N | off                  reference fixture 1..14\n"
         "  data refresh | show              refresh the prayer times now; print the store summary\n"
         "  data corrupt | erase             damage the store file; delete the store\n"
+        "  data block | unblock NAME        imsakiyem, emushaf, aladhan (unblock all); RAM only\n"
+        "  data plan | calib                refresh plan; coordinates and calibration\n"
 #endif
     );
 }
@@ -67,6 +69,7 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::TzSet: case Command::TimeSync: case Command::NtpOn: case Command::NtpOff:
         case Command::ClockInvalid: case Command::TimeJitter:
         case Command::DataRefresh: case Command::DataShow: case Command::DataCorrupt: case Command::DataErase:
+        case Command::DataBlock: case Command::DataUnblock: case Command::DataPlan: case Command::DataCalib:
             command = Command::Unknown;
             break;
         default: break;
@@ -109,6 +112,10 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::DataShow:
         case Command::DataCorrupt:
         case Command::DataErase:
+        case Command::DataBlock:  // spec 007
+        case Command::DataUnblock:
+        case Command::DataPlan:
+        case Command::DataCalib:
             if (handlers.screen_command != nullptr) {
                 handlers.screen_command(parsed);
             } else {
