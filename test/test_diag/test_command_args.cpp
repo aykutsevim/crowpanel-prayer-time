@@ -107,7 +107,17 @@ static void test_time_commands() {  // spec 005 contracts/serial-console.md
     expect_cmd(long_zone, Command::InvalidArgument);  // over 63 bytes
 }
 
+static void test_data_commands() {  // spec 006 contracts/serial-console.md, FR-016
+    expect_cmd("data refresh", Command::DataRefresh);
+    expect_cmd("  DATA   show ", Command::DataShow);
+    expect_cmd("data corrupt", Command::DataCorrupt);
+    expect_cmd("data erase", Command::DataErase);
+    expect_cmd("data", Command::Unknown);
+    expect_cmd("data wipe", Command::Unknown);
+}
+
 void run_command_args_tests() {
+    RUN_TEST(test_data_commands);
     RUN_TEST(test_time_commands);
     RUN_TEST(test_plain_commands_still_parse);
     RUN_TEST(test_time_set);

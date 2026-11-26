@@ -1,0 +1,14 @@
+{
+  "name": "nvp_providers",
+  "version": "0.0.0",
+  "description": "Namaz Vakti Panel providers: streaming parsers, batch validation and the refresh flow over an abstract HTTP interface. Pure C++ (no Arduino, ESP-IDF or LVGL headers); depends on nvp_core only.",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": [
+    { "name": "nvp_core" }
+  ],
+  "build": {
+    "srcDir": "src",
+    "includeDir": "src"
+  }
+}

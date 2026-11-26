@@ -2,6 +2,8 @@
 // Written before the code.
 #include <unity.h>
 
+#include "nvp/engine/day_record.h"
+
 #include "nvp/screen/system_state.h"
 
 using namespace nvp::screen;
@@ -93,6 +95,23 @@ static void test_real_inputs_of_spec_005() {  // FR-007: the device's inputs unt
     expect(SystemState::NoData, in);
 }
 
+static void test_real_inputs_of_spec_006() {  // T020, FR-013, analysis U1
+    StateInputs in;  // as the device fills them in Slice 6
+    in.clock_valid = true;
+    in.today_present = true;
+    in.today_rank = nvp::engine::rank(nvp::engine::SourceId::Imsakiyem);  // 40
+    in.refresh_failed_or_wifi_down = false;                                 // neutral until Slice 7
+    in.stored_days_after_today = 400;
+    in.wifi_down_minutes = 0;
+    expect(SystemState::Ok, in);  // not calculated: the default rank 0 would have chosen it
+    in.wifi_down_minutes = 10;
+    expect(SystemState::Ok, in);
+    in.wifi_down_minutes = 11;  // more than 10 min
+    expect(SystemState::Offline, in);
+    in.today_present = false;
+    expect(SystemState::NoData, in);
+}
+
 static void test_names() {
     TEST_ASSERT_EQUAL_STRING("no_time", state_name(SystemState::NoTime));
     TEST_ASSERT_EQUAL_STRING("cache_ending", state_name(SystemState::CacheEnding));
@@ -110,5 +129,6 @@ void run_system_state_tests() {
     RUN_TEST(test_first_match_wins);
     RUN_TEST(test_forced_state_overrides);
     RUN_TEST(test_real_inputs_of_spec_005);
+    RUN_TEST(test_real_inputs_of_spec_006);
     RUN_TEST(test_names);
 }

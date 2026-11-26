@@ -67,9 +67,24 @@ OverlayView make_overlay_view(const OverlayInput& in) {
     } else {
         copy(v.location, sizeof v.location, tr::kDash);
     }
-    copy(v.source, sizeof v.source, tr::kDash);       // Slice 6
-    copy(v.last_update, sizeof v.last_update, tr::kDash);
-    copy(v.last_day, sizeof v.last_day, tr::kDash);
+    copy(v.source, sizeof v.source, in.has_source ? source_display_name(in.source) : tr::kDash);  // spec 006
+    if (in.has_last_update) {
+        const int64_t t = in.last_update_local;
+        const int64_t days = t >= 0 ? t / 86400 : -((-t + 86399) / 86400);
+        const int32_t sod = static_cast<int32_t>(t - days * 86400);
+        const engine::Date d = engine::to_date(static_cast<engine::DayNumber>(days));
+        std::snprintf(v.last_update, sizeof v.last_update, "%02u.%02u.%04u %02u:%02u", static_cast<unsigned>(d.day) % 100u,
+                      static_cast<unsigned>(d.month) % 100u, static_cast<unsigned>(d.year) % 10000u,
+                      static_cast<unsigned>(sod / 3600) % 24u, static_cast<unsigned>(sod / 60) % 60u);
+    } else {
+        copy(v.last_update, sizeof v.last_update, tr::kDash);
+    }
+    if (in.has_last_day) {
+        std::snprintf(v.last_day, sizeof v.last_day, "%02u.%02u.%04u", static_cast<unsigned>(in.last_day.day) % 100u,
+                      static_cast<unsigned>(in.last_day.month) % 100u, static_cast<unsigned>(in.last_day.year) % 10000u);
+    } else {
+        copy(v.last_day, sizeof v.last_day, tr::kDash);
+    }
     copy(v.pin, sizeof v.pin, tr::kDash);             // shown from Slice 8
     if (in.wifi_up) {
         char name[33 * 3 + 1];
@@ -84,6 +99,25 @@ OverlayView make_overlay_view(const OverlayInput& in) {
     copy(v.version, sizeof v.version, in.version);
     v.show_qr = in.show_qr && in.wifi_up;
     return v;
+}
+
+const char* source_display_name(engine::SourceId s) {
+    switch (s) {
+        case engine::SourceId::Diyanet: return tr::kSourceDiyanet;
+        case engine::SourceId::Imsakiyem: return tr::kSourceImsakiyem;
+        case engine::SourceId::Emushaf: return tr::kSourceEmushaf;
+        case engine::SourceId::Aladhan: return tr::kSourceAladhan;
+        case engine::SourceId::Local: return tr::kSourceLocal;
+    }
+    return tr::kDash;
+}
+
+void city_name(const char* province, const char* district, char* out, size_t cap) {
+    if (cap == 0) return;
+    out[0] = '\0';
+    if (province == nullptr || district == nullptr || district[0] == '\0') return;
+    const char* name = std::strcmp(province, district) == 0 ? province : district;
+    nvp::text::title_case_tr(name, out, cap);
 }
 
 SetupView fixture_setup_view() { return make_setup_view("NamazVakti-7F3A", "48271935", 0, FailureClass::None); }

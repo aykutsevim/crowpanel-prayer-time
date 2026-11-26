@@ -89,6 +89,12 @@ inline constexpr const char* kConfirmText = "Kayıtlı Wi-Fi ayarı silinir. Vak
 inline constexpr const char* kConfirmCancel = "Vazgeç";
 inline constexpr const char* kConfirmStartOver = "Baştan kur";
 inline constexpr const char* kWifiNotConnected = "bağlı değil";
+// Source names for the overlay (02 §9.5).
+inline constexpr const char* kSourceDiyanet = "Diyanet (resmî servis)";
+inline constexpr const char* kSourceImsakiyem = "Diyanet (imsakiyem)";
+inline constexpr const char* kSourceEmushaf = "Diyanet (emushaf)";
+inline constexpr const char* kSourceAladhan = "Hesaplama (Aladhan)";
+inline constexpr const char* kSourceLocal = "Hesaplama (cihaz)";
 inline constexpr const char* kDash = "—";  // U+2014, a value that a later slice fills (analysis U3)
 
 // Setup page (02 §10, OD4-4): the mark of an unsupported network. The page has its own copy.

@@ -80,6 +80,40 @@ static void test_overlay_view() {
     TEST_ASSERT_EQUAL_STRING(tr::kDash, v.location);
 }
 
+static void test_overlay_store_rows() {  // spec 006 FR-014, 02 §7.4 formats, 02 §9.5 names
+    OverlayInput in;
+    in.has_source = true;
+    in.source = nvp::engine::SourceId::Imsakiyem;
+    in.has_last_update = true;
+    in.last_update_local =
+        static_cast<int64_t>(nvp::engine::to_day_number(nvp::engine::Date{2026, 11, 17})) * 86400 + 3 * 3600;
+    in.has_last_day = true;
+    in.last_day = nvp::engine::Date{2026, 12, 31};
+    OverlayView v = make_overlay_view(in);
+    TEST_ASSERT_EQUAL_STRING("Diyanet (imsakiyem)", v.source);
+    TEST_ASSERT_EQUAL_STRING("17.11.2026 03:00", v.last_update);
+    TEST_ASSERT_EQUAL_STRING("31.12.2026", v.last_day);
+    TEST_ASSERT_EQUAL_STRING("Diyanet (resmî servis)", source_display_name(nvp::engine::SourceId::Diyanet));
+    TEST_ASSERT_EQUAL_STRING("Diyanet (emushaf)", source_display_name(nvp::engine::SourceId::Emushaf));
+    TEST_ASSERT_EQUAL_STRING("Hesaplama (Aladhan)", source_display_name(nvp::engine::SourceId::Aladhan));
+    TEST_ASSERT_EQUAL_STRING("Hesaplama (cihaz)", source_display_name(nvp::engine::SourceId::Local));
+    in.has_source = in.has_last_update = in.has_last_day = false;
+    v = make_overlay_view(in);
+    TEST_ASSERT_EQUAL_STRING(tr::kDash, v.source);
+    TEST_ASSERT_EQUAL_STRING(tr::kDash, v.last_update);
+    TEST_ASSERT_EQUAL_STRING(tr::kDash, v.last_day);
+}
+
+static void test_city_name() {  // M2 (02 §4.1)
+    char c[48];
+    city_name("İSTANBUL", "SULTANBEYLİ", c, sizeof c);
+    TEST_ASSERT_EQUAL_STRING("Sultanbeyli", c);
+    city_name("ANKARA", "ANKARA", c, sizeof c);  // the province centre
+    TEST_ASSERT_EQUAL_STRING("Ankara", c);
+    city_name(nullptr, nullptr, c, sizeof c);
+    TEST_ASSERT_EQUAL_STRING("", c);
+}
+
 static void test_fixture_views() {  // reference renders 15-17 (02 §11)
     const SetupView s = fixture_setup_view();
     TEST_ASSERT_EQUAL_STRING("NamazVakti-7F3A", s.ap_ssid);
@@ -106,4 +140,6 @@ void run_views_tests() {
     RUN_TEST(test_setup_view);
     RUN_TEST(test_connecting_view);
     RUN_TEST(test_overlay_view);
+    RUN_TEST(test_overlay_store_rows);
+    RUN_TEST(test_city_name);
 }

@@ -97,6 +97,45 @@ static void test_time_line() {  // spec 005 FR-015, contracts/serial-console.md
     TEST_ASSERT_NULL(std::strstr(buf, "\ntime: "));
 }
 
+static void test_data_line() {  // spec 006 contracts/serial-console.md, FR-016
+    char line[128];
+    DataLine d;
+    format_data_line(d, line, sizeof line);
+    TEST_ASSERT_EQUAL_STRING("none", line);
+    d.present = true;
+    d.count = 403;
+    d.first = {2026, 11, 24};
+    d.last = {2027, 12, 31};
+    d.today = true;
+    d.source = "imsakiyem";
+    d.has_refresh = true;
+    d.refresh_hour = 15;
+    d.refresh_minute = 52;
+    d.minutes_ago = 0;
+    format_data_line(d, line, sizeof line);
+    TEST_ASSERT_EQUAL_STRING(
+        "403 records 2026-11-24..2027-12-31, today yes, source imsakiyem, last refresh 15:52 (0 min ago)", line);
+    d.today = false;
+    d.has_refresh = false;
+    format_data_line(d, line, sizeof line);
+    TEST_ASSERT_EQUAL_STRING("403 records 2026-11-24..2027-12-31, today no, source imsakiyem, last refresh none",
+                             line);
+    // Short buffers truncate and stay terminated.
+    char tiny[8];
+    TEST_ASSERT_TRUE(format_data_line(d, tiny, sizeof tiny) > sizeof tiny);
+    TEST_ASSERT_EQUAL_size_t(7, std::strlen(tiny));
+
+    char buf[1024];
+    ReportInput in = stage1_input();
+    in.location_line = "ANKARA / ANKARA (9206)";
+    in.data_line = "none";
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NOT_NULL(std::strstr(buf, "\nlocation: ANKARA / ANKARA (9206)\ndata: none\n=== END ===\n"));
+    in.data_line = nullptr;
+    report::format(in, buf, sizeof buf);
+    TEST_ASSERT_NULL(std::strstr(buf, "\ndata: "));
+}
+
 static void test_mode_and_location_lines() {  // spec 004 contracts/serial-console.md, FR-024
     char buf[1024];
     ReportInput in = stage1_input();
@@ -349,6 +388,7 @@ void run_selftest_report_tests() {
     RUN_TEST(test_clock_and_screen_lines);
     RUN_TEST(test_mode_and_location_lines);
     RUN_TEST(test_time_line);
+    RUN_TEST(test_data_line);
     RUN_TEST(test_failed_and_skipped_carry_reasons);
     RUN_TEST(test_skipped_without_reason_still_says_why_missing);
     RUN_TEST(test_reason_is_truncated_and_ascii);
