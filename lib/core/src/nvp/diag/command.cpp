@@ -46,6 +46,8 @@ constexpr Entry kCommands[] = {
     {"data show", Command::DataShow},
     {"data corrupt", Command::DataCorrupt},
     {"data erase", Command::DataErase},
+    {"data plan", Command::DataPlan},
+    {"data calib", Command::DataCalib},
 };
 
 }  // namespace
@@ -173,6 +175,19 @@ ParsedCommand parse_command_line(const char* line) {
         const bool ok = *rest == ' ' && number(p, 0, &n) && *p == '\0' && n >= 10 && n <= 3600;
         c.command = ok ? Command::TimeJitter : Command::InvalidArgument;
         c.number = n;
+    } else if (starts_with(norm, "data block", &rest) || starts_with(norm, "data unblock", &rest)) {
+        // "data block <imsakiyem|emushaf|aladhan>", "data unblock <name|all>" (spec 007 R10)
+        const bool block = norm[5] == 'b';
+        c.command = Command::InvalidArgument;
+        if (*rest != ' ') return c;
+        const char* name = rest + 1;
+        const char* names[4] = {"all", "imsakiyem", "emushaf", "aladhan"};
+        for (int i = block ? 1 : 0; i < 4; ++i) {
+            if (std::strcmp(name, names[i]) == 0) {
+                c.number = i;
+                c.command = block ? Command::DataBlock : Command::DataUnblock;
+            }
+        }
     } else if (starts_with(norm, "fixture", &rest)) {
         const char* p = rest + 1;
         const bool ok = *rest == ' ' && number(p, 0, &n) && *p == '\0' && n >= 1 && n <= 17;  // 15-17: spec 004 screens

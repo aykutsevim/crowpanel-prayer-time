@@ -76,10 +76,14 @@ struct DataLine {
     uint8_t refresh_hour = 0;  // local
     uint8_t refresh_minute = 0;
     uint32_t minutes_ago = 0;
+    // Spec 007 (contracts/serial-console.md): appended when set.
+    const char* outcome = nullptr;  // the last refresh's outcome ("complete", "failed", ...)
+    bool has_next = false;          // the next planned refresh, local time
+    uint8_t next_day = 0, next_month = 0, next_hour = 0, next_minute = 0;
 };
 
 // "403 records 2026-11-24..2027-12-31, today yes, source imsakiyem, last refresh 15:52 (0 min ago)"
-// or "none". Same contract as snprintf: returns the length the full line needs.
+// or "none"; spec 007 appends ", last outcome complete, next 03.12 03:41". Same contract as snprintf: returns the length the full line needs.
 size_t format_data_line(const DataLine& d, char* out, size_t cap);
 
 namespace report {

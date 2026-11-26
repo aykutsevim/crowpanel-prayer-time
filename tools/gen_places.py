@@ -32,6 +32,9 @@ from typing import Callable
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "places_tr.json"
+COORDS_OUT = ROOT / "data" / "places_coords.json"
+TR_BOX = (35.8, 42.2, 25.6, 44.9)  # latitude min, max; longitude min, max (04 §6)
+COORD_CONFIDENCE = ("high", "medium")
 IMSAKIYEM = "https://ezanvakti.imsakiyem.com"
 EMUSHAF = "https://ezanvakti.emushaf.net"
 PACE_S = 3.1
@@ -209,6 +212,54 @@ def fetch_all(fetch: Callable[[str], dict]) -> tuple[list, list, dict[int, int]]
     return states, districts, centre_of
 
 
+def build_coords(provinces: list, districts: list[dict]) -> list:
+    """Coordinates for every bundled entry, in the bundled order (spec 007 T031, research R4):
+    [[stored_id, NAME, lat_e5, lon_e5], ...]. An entry is matched by province id and Diyanet name,
+    which are unique in the list; the stored id is the centre's for an entry without its own times."""
+    by_key: dict[tuple[int, str], dict] = {}
+    for d in districts:
+        by_key[(int(d["state"]["id"]), d["diyanet_name"].strip())] = d
+    rows = []
+    for pid, pname, entries in provinces:
+        for did, name in entries:
+            d = by_key.get((pid, name))
+            if d is None:
+                raise PlaceError(f"coordinates: {name} in {pname} not in the district list")
+            c = d.get("coordinates") or {}
+            if c.get("confidence") not in COORD_CONFIDENCE:
+                raise PlaceError(f"coordinates: {name} in {pname} has confidence {c.get('confidence')}")
+            lat, lon = float(c["lat"]), float(c["lon"])
+            if not (TR_BOX[0] <= lat <= TR_BOX[1] and TR_BOX[2] <= lon <= TR_BOX[3]):
+                raise PlaceError(f"coordinates: {name} in {pname} outside Türkiye ({lat}, {lon})")
+            rows.append([did, name, round(lat * 100000), round(lon * 100000)])
+    return rows
+
+
+def coords_document(rows: list, generated: str) -> str:
+    head = {
+        "generated": generated,
+        "source": f"{IMSAKIYEM}/api/v2/locations/districts (coordinates), matched to data/places_tr.json",
+        "sha256": hashlib.sha256(json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest(),
+    }
+    lines = [json.dumps(head, ensure_ascii=False, separators=(",", ":"))[:-1] + ',"rows":[']
+    lines += [json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "," for r in rows]
+    lines[-1] = lines[-1][:-1]
+    lines.append("]}")
+    return "\n".join(lines) + "\n"
+
+
+def fetch_districts(fetch: Callable[[str], dict]) -> list[dict]:
+    districts: list[dict] = []
+    page = 1
+    while True:
+        doc = fetch(f"{IMSAKIYEM}/api/v2/locations/districts?countryId=2&page={page}&limit=500")
+        districts += doc["data"]
+        if page >= doc["meta"]["pagination"]["pages"]:
+            break
+        page += 1
+    return districts
+
+
 def spot_check(provinces: list, fetch: Callable[[str], list], rng: random.Random) -> None:
     where = {}
     for pid, _, ds in provinces:
@@ -224,13 +275,27 @@ def spot_check(provinces: list, fetch: Callable[[str], list], rng: random.Random
             raise PlaceError(f"spot check: district {did} not listed by emushaf for province {where[did]}")
 
 
+def main_coords() -> int:
+    """`--coords`: only the coordinates table, from the bundled list and the district pages."""
+    fetch = Fetcher()
+    provinces = verify_file(OUT)
+    rows = build_coords(provinces, fetch_districts(fetch))
+    COORDS_OUT.write_text(coords_document(rows, date.today().isoformat()), encoding="utf-8", newline="\n")
+    print(f"{len(rows)} coordinates, {fetch.count} requests; wrote {COORDS_OUT.relative_to(ROOT)}")
+    return 0
+
+
 def main() -> int:
+    if "--coords" in sys.argv[1:]:
+        return main_coords()
     fetch = Fetcher()
     print("fetching provinces, districts and centre ids (one request every 3.1 s)...")
     states, districts, centre_of = fetch_all(fetch)
     provinces = build(states, districts, centre_of)
     spot_check(provinces, fetch, random.Random())
     OUT.write_text(document(provinces, date.today().isoformat()), encoding="utf-8", newline="\n")
+    COORDS_OUT.write_text(coords_document(build_coords(provinces, districts), date.today().isoformat()),
+                          encoding="utf-8", newline="\n")
     total = sum(len(p[2]) for p in provinces)
     print(f"{len(provinces)} provinces, {total} entries ({total - len(centre_of)} Diyanet + {len(centre_of)} "
           f"centre-mapped), {fetch.count} requests, sha256 {checksum(provinces)}")

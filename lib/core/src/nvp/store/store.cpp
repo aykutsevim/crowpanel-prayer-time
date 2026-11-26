@@ -84,24 +84,6 @@ uint32_t records_crc(const Store& s) {
     return crc;
 }
 
-// Reads exactly n bytes; false on an error or a short read.
-bool read_all(FileSystem& fs, int h, void* buf, size_t n) {
-    uint8_t* p = static_cast<uint8_t*>(buf);
-    size_t got = 0;
-    while (got < n) {
-        long k = fs.read(h, p + got, n - got);
-        if (k <= 0) return false;
-        got += static_cast<size_t>(k);
-    }
-    return true;
-}
-
-SaveResult abandon(FileSystem& fs, int h, const char* tmp, SaveResult why) {
-    if (h >= 0) fs.close(h);
-    fs.remove(tmp);  // best effort; load() removes a leftover .new too
-    return why;
-}
-
 }  // namespace
 
 const char* load_result_text(LoadResult r) {
@@ -118,32 +100,9 @@ const char* load_result_text(LoadResult r) {
     return "?";
 }
 
-const char* save_result_text(SaveResult r) {
-    switch (r) {
-        case SaveResult::Ok: return "ok";
-        case SaveResult::Empty: return "empty";
-        case SaveResult::OpenFailed: return "open failed";
-        case SaveResult::WriteFailed: return "write failed";
-        case SaveResult::CloseFailed: return "close failed";
-        case SaveResult::VerifyFailed: return "verify failed";
-        case SaveResult::RenameFailed: return "rename failed";
-    }
-    return "?";
-}
-
 bool store_file_name(uint32_t district, bool temporary, char* out, size_t cap) {
     int n = std::snprintf(out, cap, "store_%lu.%s", static_cast<unsigned long>(district), temporary ? "new" : "bin");
     return n > 0 && static_cast<size_t>(n) < cap;
-}
-
-uint32_t crc32(uint32_t crc, const void* data, size_t n) {
-    const uint8_t* p = static_cast<const uint8_t*>(data);
-    crc = ~crc;
-    for (size_t i = 0; i < n; ++i) {
-        crc ^= p[i];
-        for (int k = 0; k < 8; ++k) crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
-    }
-    return ~crc;
 }
 
 uint8_t source_code(engine::SourceId s) { return static_cast<uint8_t>(s); }
@@ -228,51 +187,38 @@ LoadResult load(FileSystem& fs, uint32_t district, Store& out) {
     return LoadResult::Ok;
 }
 
+namespace {
+
+struct SaveCtx {
+    const Store* s;
+    uint16_t count;
+};
+
+bool produce_store(void* ctx, AtomicWriter& w) {
+    const SaveCtx& c = *static_cast<const SaveCtx*>(ctx);
+    uint8_t head[kHeaderBytes];
+    encode_header(*c.s, records_crc(*c.s), head);
+    if (!w.write(head, sizeof head)) return false;
+    uint8_t chunk[kChunkRecords * kRecordBytes];
+    for (uint16_t done = 0; done < c.count;) {
+        uint16_t k = chunk_of(c.count, done);
+        for (uint16_t i = 0; i < k; ++i) encode_record(c.s->records[done + i], chunk + i * kRecordBytes);
+        if (!w.write(chunk, k * kRecordBytes)) return false;
+        done = static_cast<uint16_t>(done + k);
+    }
+    return true;
+}
+
+}  // namespace
+
+// Atomic replace through atomic_write (research R5; spec 007 T005).
 SaveResult save(FileSystem& fs, const Store& s) {
     if (s.count == 0) return SaveResult::Empty;
-    const uint16_t count = s.count > kMaxRecords ? static_cast<uint16_t>(kMaxRecords) : s.count;
+    SaveCtx ctx{&s, s.count > kMaxRecords ? static_cast<uint16_t>(kMaxRecords) : s.count};
     char bin[32], tmp[32];
     store_file_name(s.district_id, false, bin, sizeof bin);
     store_file_name(s.district_id, true, tmp, sizeof tmp);
-
-    const uint32_t crc = records_crc(s);
-    uint8_t head[kHeaderBytes];
-    encode_header(s, crc, head);
-
-    // 1. Write the new file completely and close it (littlefs commits on close).
-    if (fs.exists(tmp) && !fs.remove(tmp)) return SaveResult::OpenFailed;
-    int h = fs.open(tmp, OpenMode::Write);
-    if (h < 0) return abandon(fs, -1, tmp, SaveResult::OpenFailed);
-    if (!fs.write(h, head, sizeof head)) return abandon(fs, h, tmp, SaveResult::WriteFailed);
-    uint8_t chunk[kChunkRecords * kRecordBytes];
-    for (uint16_t done = 0; done < count;) {
-        uint16_t k = chunk_of(count, done);
-        for (uint16_t i = 0; i < k; ++i) encode_record(s.records[done + i], chunk + i * kRecordBytes);
-        if (!fs.write(h, chunk, k * kRecordBytes)) return abandon(fs, h, tmp, SaveResult::WriteFailed);
-        done = static_cast<uint16_t>(done + k);
-    }
-    if (!fs.close(h)) return abandon(fs, -1, tmp, SaveResult::CloseFailed);
-
-    // 2. Read it back and check the header and the CRC.
-    h = fs.open(tmp, OpenMode::Read);
-    if (h < 0) return abandon(fs, -1, tmp, SaveResult::VerifyFailed);
-    uint8_t back[kHeaderBytes];
-    if (!read_all(fs, h, back, sizeof back) || std::memcmp(back, head, sizeof head) != 0)
-        return abandon(fs, h, tmp, SaveResult::VerifyFailed);
-    uint32_t check = 0;
-    for (uint16_t done = 0; done < count;) {
-        uint16_t k = chunk_of(count, done);
-        if (!read_all(fs, h, chunk, k * kRecordBytes)) return abandon(fs, h, tmp, SaveResult::VerifyFailed);
-        check = crc32(check, chunk, k * kRecordBytes);
-        done = static_cast<uint16_t>(done + k);
-    }
-    uint8_t extra;
-    if (fs.read(h, &extra, 1) != 0 || check != crc) return abandon(fs, h, tmp, SaveResult::VerifyFailed);
-    if (!fs.close(h)) return abandon(fs, -1, tmp, SaveResult::VerifyFailed);
-
-    // 3. Atomic replace.
-    if (!fs.rename(tmp, bin)) return abandon(fs, -1, tmp, SaveResult::RenameFailed);
-    return SaveResult::Ok;
+    return atomic_write(fs, bin, tmp, produce_store, &ctx);
 }
 
 const engine::DayRecord* find(const Store& s, engine::Date d) {
@@ -286,6 +232,14 @@ const engine::DayRecord* find(const Store& s, engine::Date d) {
         if (n < want) lo = mid + 1; else hi = mid;
     }
     return nullptr;
+}
+
+uint16_t consecutive_days_after(const Store& s, engine::Date d) {
+    if (!engine::valid(d)) return 0;
+    const engine::DayNumber n = engine::to_day_number(d);
+    uint16_t k = 0;
+    while (k < kMaxRecords && find(s, engine::to_date(n + k + 1)) != nullptr) ++k;
+    return k;
 }
 
 uint16_t days_after(const Store& s, engine::Date d) {

@@ -114,6 +114,20 @@ static void test_data_commands() {  // spec 006 contracts/serial-console.md, FR-
     expect_cmd("data erase", Command::DataErase);
     expect_cmd("data", Command::Unknown);
     expect_cmd("data wipe", Command::Unknown);
+    // Spec 007 (FR-022).
+    expect_cmd("data plan", Command::DataPlan);
+    expect_cmd("DATA calib", Command::DataCalib);
+    ParsedCommand p = nvp::diag::parse_command_line("data block emushaf");
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Command::DataBlock), static_cast<int>(p.command));
+    TEST_ASSERT_EQUAL_INT(2, p.number);
+    p = nvp::diag::parse_command_line("data block  ALADHAN ");
+    TEST_ASSERT_EQUAL_INT(3, p.number);
+    p = nvp::diag::parse_command_line("data unblock all");
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(Command::DataUnblock), static_cast<int>(p.command));
+    TEST_ASSERT_EQUAL_INT(0, p.number);
+    expect_cmd("data block all", Command::InvalidArgument);
+    expect_cmd("data block", Command::InvalidArgument);
+    expect_cmd("data block diyanet", Command::InvalidArgument);
 }
 
 void run_command_args_tests() {

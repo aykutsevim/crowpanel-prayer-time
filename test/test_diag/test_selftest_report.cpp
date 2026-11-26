@@ -123,6 +123,16 @@ static void test_data_line() {  // spec 006 contracts/serial-console.md, FR-016
     // Short buffers truncate and stay terminated.
     char tiny[8];
     TEST_ASSERT_TRUE(format_data_line(d, tiny, sizeof tiny) > sizeof tiny);
+    // Spec 007: the outcome and the next planned refresh.
+    d.outcome = "complete";
+    d.has_next = true;
+    d.next_day = 3;
+    d.next_month = 12;
+    d.next_hour = 3;
+    d.next_minute = 41;
+    const size_t need = format_data_line(d, line, sizeof line);
+    TEST_ASSERT_EQUAL_UINT32(std::strlen(line), need);
+    TEST_ASSERT_NOT_NULL(std::strstr(line, ", last outcome complete, next 03.12 03:41"));
     TEST_ASSERT_EQUAL_size_t(7, std::strlen(tiny));
 
     char buf[1024];

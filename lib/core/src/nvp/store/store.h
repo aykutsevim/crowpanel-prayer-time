@@ -16,6 +16,7 @@
 
 #include "nvp/engine/calendar.h"
 #include "nvp/engine/day_record.h"
+#include "nvp/store/atomic_file.h"
 #include "nvp/store/file_system.h"
 
 namespace nvp::store {
@@ -33,10 +34,8 @@ struct Store {
 };
 
 enum class LoadResult : uint8_t { Ok, Missing, BadMagic, BadVersion, BadCrc, Truncated, ReadError, WrongDistrict };
-enum class SaveResult : uint8_t { Ok, Empty, OpenFailed, WriteFailed, CloseFailed, VerifyFailed, RenameFailed };
 
 const char* load_result_text(LoadResult r);  // "bad checksum", ...
-const char* save_result_text(SaveResult r);
 
 // "store_9206.bin" / "store_9206.new". Returns false when cap is too small.
 bool store_file_name(uint32_t district, bool temporary, char* out, size_t cap);
@@ -52,9 +51,10 @@ const engine::DayRecord* find(const Store& s, engine::Date d);
 inline bool covers(const Store& s, engine::Date d) { return find(s, d) != nullptr; }
 // Days stored after `d` (records dated later than d), for the cache_ending state of Slice 7.
 uint16_t days_after(const Store& s, engine::Date d);
+// Consecutive days after `d` that have a record of any source (spec 007 FR-019, T035: the N of
+// cache_ending): 0 when tomorrow is missing.
+uint16_t consecutive_days_after(const Store& s, engine::Date d);
 
-// IEEE 802.3 CRC-32 (reflected, 0xEDB88320), continued from `crc` (start with 0).
-uint32_t crc32(uint32_t crc, const void* data, size_t n);
 
 // The stable source id stored on flash (04 §8) and its log name ("imsakiyem").
 uint8_t source_code(engine::SourceId s);

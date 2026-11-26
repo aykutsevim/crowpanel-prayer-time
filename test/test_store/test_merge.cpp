@@ -1,6 +1,7 @@
 // Merge rules of 04-data-sources §4 (spec 006 T007, research R6, FR-008).
 #include <unity.h>
 
+#include <cstdio>
 #include <vector>
 
 #include "nvp/engine/calendar.h"
@@ -137,7 +138,42 @@ void test_at_most_400_oldest_dropped() {
 
 }  // namespace
 
+// Spec 007 T003 (FR-002, SC-006): every pair of the ranks 10, 20, 40. A lower rank never replaces a
+// higher one, whatever the fetch time; a higher rank always replaces; equal ranks follow spec 006.
+void test_rank_pairs_spec007() {
+    const SourceId srcs[3] = {SourceId::Local, SourceId::Aladhan, SourceId::Imsakiyem};
+    for (int a = 0; a < 3; ++a) {
+        for (int b = 0; b < 3; ++b) {
+            for (int later = 0; later < 2; ++later) {
+                reset(0, 3, srcs[a]);
+                DayRecord in = day(plus(kToday, 1), srcs[b], 5);
+                const int64_t fetch = later ? kT0 + 3600 : kT0 - 3600;
+                nvp::store::merge(g_store, &in, 1, fetch, kToday);
+                const uint8_t ra = nvp::engine::rank(srcs[a]), rb = nvp::engine::rank(srcs[b]);
+                const bool replaced = g_store.records[1].source == srcs[b] && g_store.records[1].minutes[0] == 368 + 5;
+                char msg[64];
+                std::snprintf(msg, sizeof msg, "stored rank %u, incoming %u, later %d", ra, rb, later);
+                if (rb < ra) TEST_ASSERT_FALSE_MESSAGE(replaced, msg);
+                if (rb > ra) TEST_ASSERT_TRUE_MESSAGE(replaced, msg);
+                if (rb == ra) TEST_ASSERT_EQUAL_MESSAGE(later != 0, replaced, msg);
+            }
+        }
+    }
+}
+
+// A stored rank-40 day and a much newer rank-10 one: the stored day stays (DATA-05).
+void test_newer_local_never_replaces_diyanet() {
+    reset(0, 2, SourceId::Emushaf);
+    DayRecord in = day(kToday, SourceId::Local, 9);
+    MergeStats m = nvp::store::merge(g_store, &in, 1, kT0 + 365 * 86400, kToday);
+    TEST_ASSERT_EQUAL_UINT16(0, m.replaced);
+    TEST_ASSERT_EQUAL_INT(static_cast<int>(SourceId::Emushaf), static_cast<int>(g_store.records[0].source));
+    TEST_ASSERT_EQUAL_UINT16(368, g_store.records[0].minutes[0]);
+}
+
 void run_merge_tests() {
+    RUN_TEST(test_rank_pairs_spec007);
+    RUN_TEST(test_newer_local_never_replaces_diyanet);
     RUN_TEST(test_into_empty_store);
     RUN_TEST(test_higher_rank_replaces);
     RUN_TEST(test_equal_rank_later_fetch_replaces);

@@ -5,6 +5,7 @@
 void run_store_format_tests();
 void run_merge_tests();
 void run_power_loss_tests();
+void run_refresh_state_tests();
 
 void setUp() {}
 void tearDown() {}
@@ -14,5 +15,6 @@ int main(int, char**) {
     run_store_format_tests();
     run_merge_tests();
     run_power_loss_tests();
+    run_refresh_state_tests();
     return UNITY_END();
 }

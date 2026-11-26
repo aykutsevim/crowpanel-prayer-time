@@ -216,7 +216,20 @@ size_t format_data_line(const DataLine& d, char* out, size_t cap) {
                           static_cast<unsigned>(d.count), d.first.year, d.first.month, d.first.day, d.last.year,
                           d.last.month, d.last.day, d.today ? "yes" : "no", d.source);
     }
-    return n < 0 ? 0 : static_cast<size_t>(n);
+    if (n < 0) return 0;
+    size_t len = static_cast<size_t>(n);
+    auto append = [&](int k) {
+        if (k > 0) len += static_cast<size_t>(k);
+    };
+    if (d.present && d.outcome != nullptr) {
+        append(std::snprintf(len < cap ? out + len : nullptr, len < cap ? cap - len : 0, ", last outcome %s", d.outcome));
+    }
+    if (d.present && d.has_next) {
+        append(std::snprintf(len < cap ? out + len : nullptr, len < cap ? cap - len : 0, ", next %02u.%02u %02u:%02u",
+                             static_cast<unsigned>(d.next_day), static_cast<unsigned>(d.next_month),
+                             static_cast<unsigned>(d.next_hour), static_cast<unsigned>(d.next_minute)));
+    }
+    return len;
 }
 
 }  // namespace nvp::diag
