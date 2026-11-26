@@ -164,5 +164,6 @@ Stored in non-volatile storage; applied without restart unless noted.
 | First real times after setup, on a normal home connection | ≤ 20 s after Wi-Fi association |
 | Offline autonomy after a full refresh | until the end of the stored range, at least 30 days, normally to the end of the calendar year |
 | Outbound requests in steady state | ≤ 10 per day on average |
-| Firmware image (kept as a discipline on the 16 MB target board) | ≤ 2.9 MB |
+| Firmware image, Advance board (kept as a discipline on its 16 MB flash) | ≤ 2.9 MB |
+| Firmware image, basic board (4 MB flash, Slice 11) | set in the Slice 11 plan (spec 011 FR-010) |
 | Clock error | ≤ 1 s after SNTP sync, drift corrected at each resync |

@@ -6,11 +6,13 @@ This file fixes what is known about the hardware, recommends a software stack, a
 
 ## 1. The board
 
-### 1.1 Not the target: CrowPanel 7.0" basic, model DIS08070H
+### 1.1 Second target from Slice 11: CrowPanel 7.0" basic, model DIS08070H
 
-**Not a build target since 2026-11-20** (owner decision recorded in `specs/001-silent-board-bringup/spec.md`). The owner has no basic board, and the `crowpanel7_basic` environment with its board and partition files was removed in Slice 1 (git history keeps them). This section is kept for reference only; nothing in it was checked on hardware, and its ⚠ items stay open. Supporting this board again would be a new slice.
+**Status 2026-11-26: specified, not yet built.** It was dropped as a build target on 2026-11-20 (owner decision recorded in `specs/001-silent-board-bringup/spec.md`) because the owner had no basic board; the `crowpanel7_basic` environment with its board and partition files was removed in Slice 1 (git history keeps them). Slice 11 (`specs/011-dual-board-support/`, constitution 1.2.0) adds it back as a second target: one image per board, the same product on both. Nothing below has been checked on hardware yet, and its ⚠ items must be settled in Slice 11's research before code uses them (FR-003 of spec 011). Still not stated in the vendor's wiki or repository when re-read on 2026-11-26: the GPIO of `I2S-CTRL`, whether the PSRAM is octal or quad, the touch reset and interrupt lines and I²C address, what the PCA9557's IO0 and IO1 drive, whether `freq_write = 15000000` is the pixel clock, and whether there is any battery-backed clock.
 
-Source: Elecrow wiki page “CrowPanel ESP32 HMI 7.0-inch Display”, read 17 November 2026.
+Differences that change the firmware (Slice 11 keeps this list current, FR-012 of spec 011): flash 4 MB instead of 16 MB (own partition table and image budget, §5); all panel, touch and I²C pins; panel timing; silence through the processor's own pins instead of the auxiliary controller; backlight on GPIO2 instead of the auxiliary controller (switched fully on, never dimmed, OD1); touch start-up through the PCA9557 on V3.0; no battery-backed clock (TIME-08: waiting-for-time after a power cut without Wi-Fi); TN panel instead of IPS (design unchanged).
+
+Source: Elecrow wiki page “CrowPanel ESP32 HMI 7.0-inch Display”, read 17 November 2026 and again 26 November 2026.
 Vendor repository: `https://github.com/Elecrow-RD/CrowPanel-7.0-HMI-ESP32-Display-800x480` (factory firmware, examples, schematic).
 
 | Item | Value |
@@ -103,7 +105,7 @@ Done on 2026-11-23: DIS02170A, silkscreen V1.4 (owner check I1). The firmware do
 | Touch start-up | on the basic board revision 3.0 it needs the expander sequence; on the Advance V1.4 the GT911 reset is behind the auxiliary controller | touch test screen; owner taps four corners | **Settled 2026-11-23.** Reset through byte 250 plus INT on GPIO1, bounded to 10 attempts (R5). All four corner targets passed within 10 px (C2); touch re-checked on the ESP-IDF firmware 2026-11-24 (C1). Two corners were at the 10 px limit; the touch scale (GT911 resolution registers 0x8146…0x8149) is still to be checked. |
 | Backlight dimming | PWM may be audible or unsupported by the backlight driver | sweep duty at ≥ 20 kHz; owner listens in a quiet room and reports. If any noise or no dimming: backlight fixed on, brightness settings hidden (SET-04) | **Decided 2026-11-20 (OD1): no dimming, ever.** The backlight is dimmed only by the auxiliary controller at an undocumented frequency, so SIL-04 cannot be confirmed. The firmware sends byte 0 (full on) once and configures no PWM at all; the command gate refuses every other level. SET-04 is dropped. Owner: no whine with the backlight on (A3), backlight steady (D1). |
 | Amplifier and, on the Advance model, buzzer | an enabled amplifier can hiss or pop; a floating buzzer pin can chirp at reset | drive every sound-capable control line to its inactive level first thing at boot; owner listens at the speaker connector or built-in speaker during boot and Wi-Fi activity | **Settled 2026-11-23/24.** Both sit behind the auxiliary controller (§1.2). The silence step mutes the amplifier (249) and turns the buzzer off (247) through the command gate, which never sends 246 or 248; the report shows `acknowledged`. Owner: silent at power-on, reset, stress, Wi-Fi setup and touch (A1–A6), with no speaker connected (I4) and DIP switches at 1/1 (I3), so the amplifier has neither input nor load. No sound heard at power-on with the factory firmware either (I7). |
-| 4 MB flash | firmware with TLS, LVGL and fonts must fit without OTA | size report in every build; budget in §5 | **Not a constraint on the target** (16 MB). The 2.9 MB image budget is kept as a discipline and checked in every build. |
+| 4 MB flash | firmware with TLS, LVGL and fonts must fit without OTA | size report in every build; budget in §5 | **Not a constraint on the Advance board** (16 MB); **a real constraint again on the basic board** (4 MB, Slice 11, §5). The 2.9 MB image budget is kept as a discipline and checked in every build. |
 
 ## 3. Stack
 
@@ -195,6 +197,8 @@ Rules:
 - **The diagnostic mode is permanent product code** (owner decision 2026-11-20, FR-007a of spec 001). The diagnostic and settings screens (`lib/ui/src/diag`) and their logic (`lib/core/src/nvp/diag`) stay in the firmware. From Slice 3 on the device boots to the product screen, and the diagnostics are reached only through a hidden touch gesture (proposed: two fingers held for 5 s, which `02-ui-spec.md` §8 does not use) or the serial command `diag`. Leaving the mode returns to the product screen and stops stress mode. Their flash cost counts against the image budget in every slice; `tools/check.py` reports it.
 
 ## 5. Flash and memory
+
+Basic board (4 MB flash, Slice 11): its own partition table and image budget, set in the Slice 11 plan. It must hold the image, NVS, the day store for a full year of one district (at most 400 records of 20 bytes, about 8 kB per district file) plus `refresh.bin`, and the core dump (FR-010 of spec 011).
 
 Advance board (16 MB flash), no over-the-air update. Table `partitions/crowpanel7_advance.csv`, set in Slice 1:
 

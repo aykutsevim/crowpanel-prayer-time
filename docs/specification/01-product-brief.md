@@ -35,7 +35,7 @@ It is a personal device for one household. There is no cloud backend, no account
 | Constraint | Detail |
 |---|---|
 | **Silence** | The firmware must not produce sound under any circumstance, including boot, errors, touch feedback and tests. The board has an audio amplifier and speaker connector (the Advance model also a buzzer and microphone); they must stay disabled. Backlight dimming must not create audible whine; on the target board the backlight is therefore never dimmed (owner decision OD1). |
-| **Hardware** | Elecrow CrowPanel 7.0" ESP32-S3, 800×480, capacitive touch. The target is the Advance model, DIS02170A revision V1.4 (16 MB flash, 8 MB PSRAM, IPS panel), by owner decision on 2026-11-20. The basic model (DIS08070H) is not supported. See `05-architecture.md`. |
+| **Hardware** | Elecrow CrowPanel 7.0" ESP32-S3, 800×480, capacitive touch. The target is the Advance model, DIS02170A revision V1.4 (16 MB flash, 8 MB PSRAM, IPS panel), by owner decision on 2026-11-20. The basic model (DIS08070H, 4 MB flash, TN panel, no battery-backed clock) becomes a second target in Slice 11 (owner request 2026-11-26, `specs/011-dual-board-support/`); until that slice is done it is not supported. See `05-architecture.md`. |
 | **Design** | Design A as specified in `02-ui-spec.md`. The layout is approved; do not redesign it. |
 | **Data authority** | Diyanet’s published times are the reference. Anything else is a fallback and is labelled as approximate. |
 | **Setup** | Wi-Fi provisioning through the device’s own access point and a captive portal page on the phone. |

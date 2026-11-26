@@ -13,7 +13,7 @@ docs/
     03-functional-spec.md        numbered requirements: modes, time, engine, Wi-Fi, data, settings, silence, reliability
     04-data-sources.md           the APIs, field mappings, cache, refresh policy and automatic fallback
     05-architecture.md           board facts and pins, stack, code structure, testing, silence enforcement
-    06-roadmap.md                the ten slices, what each delivers and when it is done
+    06-roadmap.md                the ten slices plus Slice 11 (both boards), what each delivers and when it is done
   design/
     reference.html               interactive reference of every screen (open in a browser)
     tokens.json                  colours and geometry, machine-readable
@@ -25,7 +25,7 @@ docs/
     workflow.md                  how a slice is built with Spec Kit and Claude Code
     prompts/
       00-bootstrap.md            repository, Spec Kit and constitution (done in Slice 0)
-      slice-01-…md … slice-10-…md  the prompts for every Spec Kit step of every slice
+      slice-01-…md … slice-11-…md  the prompts for every Spec Kit step of every slice
 ```
 
 Requirement ids (for example `SIL-02`, `DATA-05`) are defined in `specification/03-functional-spec.md` and cited everywhere else. The binding principles are in the constitution, [`../.specify/memory/constitution.md`](../.specify/memory/constitution.md); working rules for Claude Code are in [`../CLAUDE.md`](../CLAUDE.md).
@@ -51,10 +51,10 @@ Read the other documents when a slice calls for them.
 | Setup | The device opens its own WPA2 access point, shows a QR code and password, and serves a captive page where the owner picks the home Wi-Fi and the province and district. The place list is bundled, so setup needs no internet. |
 | Time | SNTP, with an HTTP `Date` header fallback. UTC+3 by default. |
 | Scope | One location in Türkiye, Turkish UI. |
-| Board | CrowPanel Advance 7.0", DIS02170A rev V1.4, 16 MB flash, 8 MB PSRAM (owner decision 2026-11-20, constitution 1.1.0). |
+| Board | CrowPanel Advance 7.0", DIS02170A rev V1.4, 16 MB flash, 8 MB PSRAM (owner decision 2026-11-20, constitution 1.1.0). The CrowPanel 7.0" basic, DIS08070H, is added as a second target in Slice 11 (specified 2026-11-26, constitution 1.2.0, `specs/011-dual-board-support/`). |
 | Tooling | PlatformIO, host-testable core, a host UI harness that renders snapshots so the agent can check its own UI work. |
 
-Some specification documents still describe the basic board (DIS08070H) as the default and include brightness settings. Slice 1 corrects them at its close-out (spec 001, FR-033); until then the constitution and `specs/001-silent-board-bringup/` take precedence.
+Slice 1 corrected the documents that described the basic board (DIS08070H) as the default and included brightness settings (spec 001, FR-033). Since 2026-11-26 the basic board is planned as a second target (Slice 11); where a document still speaks of a single target board, the constitution 1.2.0 and `specs/011-dual-board-support/` take precedence.
 
 ## Keeping the documents true
 

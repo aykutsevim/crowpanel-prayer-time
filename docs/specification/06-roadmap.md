@@ -1,6 +1,6 @@
 # Roadmap
 
-The product is built in ten slices. Each slice is one Spec Kit feature: it gets its own specification, plan, task list and branch, ends in something the owner can see working, and leaves the main branch releasable. Prompts for every slice are in `docs/development/prompts/`.
+The product is built in ten slices, plus Slice 11, which adds the basic board as a second target (owner request, 2026-11-26). Each slice is one Spec Kit feature: it gets its own specification, plan, task list and branch, ends in something the owner can see working, and leaves the main branch releasable. Prompts for every slice are in `docs/development/prompts/`.
 
 Order matters. The early slices remove the largest risks first: can the board show a stable picture silently (1), is the time logic right (2), does the approved design render correctly (3). Networking and data come after there is a correct screen to show them on.
 
@@ -19,6 +19,7 @@ Order matters. The early slices remove the largest risks first: can the board sh
 | 8 | Settings page | change location and display options from a browser on the home network | SET-01…03 (SET-04 dropped, OD1), NET-07, SEC-01…05 | 7 |
 | 9 | Hardening and release | a version 1.0.0 that has run for 24 hours unattended | SYS-01…05, targets in `03-functional-spec.md` §12 | 8 |
 | 10 | Optional extras | official Diyanet API with the owner’s credentials (the battery-backed clock moved to Slices 3 and 5) | `04-data-sources.md` §3.3 | 9 |
+| 11 | Basic and Advance boards | the same panel, silent, on a CrowPanel 7.0" basic board as well as the Advance board | SIL-01…05, TIME-03, TIME-08, `05-architecture.md` §1, §2, §5, `03-functional-spec.md` §12 | 9 |
 
 ## Slice 0: Bootstrap
 
@@ -100,7 +101,14 @@ Order matters. The early slices remove the largest risks first: can the board sh
 Only on the owner’s request.
 
 - **Official Diyanet API provider**, when the owner has credentials: login, monthly fetch, quota-aware scheduling, comparison against the mirrors.
-- **Battery-backed clock** (built into the Advance board, the project’s target since 2026-11-20), so the device shows times after a power cut without Wi-Fi.
+- **Battery-backed clock** (built into the Advance board, the project’s target since 2026-11-20), so the device shows times after a power cut without Wi-Fi. The basic board (Slice 11) has none documented; it shows the waiting-for-time state instead.
+
+## Slice 11: Basic and Advance boards
+
+**Goal.** The same product on the CrowPanel 7.0" basic board (DIS08070H) as on the Advance board (DIS02170A V1.4), without losing anything on the Advance board.
+**Delivers.** One board profile per board, each fact cited (pins, panel timing, silence, backlight, touch start-up, clock); one firmware image per board, chosen at build time; a 4 MB partition table and image budget for the basic board; a check that builds and size-checks both images; a wrong-board guard that keeps the other board silent and dark; waiting-for-time after a power cut on the basic board, which has no battery-backed clock; every project document naming both boards.
+**Done when.** On a basic board the owner's checklist is all yes (silence, 10 min stable picture under stress, touch, setup, real times, fallback, waiting-for-time after a power cut, wrong image in both directions); the Advance board passes its regression checks; both images are within budget in every check run.
+**Needs.** A basic board in the owner's hands, and the basic-board facts that the vendor documents do not state (amplifier shutdown line, PSRAM type, touch reset and interrupt, expander roles, pixel clock, clock chip) settled from the schematic or by the owner. Specified on 2026-11-26 (`specs/011-dual-board-support/`, constitution 1.2.0); implemented after Slice 9 unless the owner reorders.
 
 ## After version 1
 
