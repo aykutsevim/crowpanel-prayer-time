@@ -98,6 +98,7 @@ If the PlatformIO IDE rewrites `.gitignore` with its own template, restore it wi
   | `tz`, `tz <POSIX zone>` | show or set the time zone, default `<+03>-3` (spec 005) |
   | `time sync`, `ntp on`, `ntp off`, `clock invalid`, `time jitter N` | ask the time servers now; switch them on or off (off: the HTTP fallback after 60 s); time not valid until the next sync; measure second alignment |
   | `state …`, `fixture 1..17`, `fixture off` | force a screen state, show a reference fixture (development builds) |
+  | `data refresh`, `data show`, `data corrupt`, `data erase` | refresh the prayer times now; print the store summary; damage the store file; delete the store (spec 006, development builds) |
 
   There is deliberately no backlight command. Passwords are never printed.
 - **Hidden diagnostics**: the device starts on the main screen; hold two fingers on it for 5 seconds (or send `diag`) to open the diagnostic screen.
