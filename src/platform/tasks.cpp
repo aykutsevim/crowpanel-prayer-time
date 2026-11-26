@@ -1,5 +1,6 @@
 #include "tasks.h"
 
+#include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
@@ -13,6 +14,8 @@ bool start_worker(const char* name, int core, uint32_t stack_bytes, WorkerFn fn,
 }
 
 void sleep_ms(uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
+
+void* alloc_psram(size_t bytes) { return heap_caps_calloc(1, bytes, MALLOC_CAP_SPIRAM); }
 
 Lock::Lock() : handle_(xSemaphoreCreateMutex()) {}
 

@@ -11,6 +11,7 @@
 #include "platform/console_io.h"
 #include "platform/dns_responder.h"
 #include "app/clock.h"
+#include "app/data_service.h"
 #include "platform/http_date.h"
 #include "platform/https_probe.h"
 #include "platform/settings_store.h"
@@ -60,6 +61,10 @@ bool g_fallback_armed = false;
 uint32_t g_fallback_at = 0;
 uint32_t g_fallback_base = 0;  // clock::network_syncs() when armed
 int g_fallback_host = 0;
+
+// --- Spec 006: the time the link went down in the running mode (0 = up), for `offline` (T022) ---
+uint32_t g_down_since = 0;
+bool g_was_up = false;
 
 // --- Worker-only state (core 0) ---
 bool g_silence_ok = false;
@@ -535,6 +540,29 @@ void drive_stress(bool want) {
     }
 }
 
+// Spec 006 (T019, T022): the day store, on this task. Runs after drive_wifi().
+void before_store_write() { wait_for_scan(); }  // FR-011
+
+void drive_data() {
+    const bool up = g_mode == Mode::RunUp && wifi::link() == wifi::Link::Up;
+    const bool running = g_mode == Mode::RunUp || g_mode == Mode::RunJoining || g_mode == Mode::RunBackoff ||
+                         g_mode == Mode::RunNoRadio;
+    if (up || !running) {
+        g_down_since = 0;
+    } else if (g_down_since == 0) {
+        g_down_since = now() | 1;  // never 0 while down
+    }
+    app::data::Tick t;
+    t.running_up = up;
+    t.link_came_up = up && !g_was_up;
+    g_was_up = up;
+    t.time_valid = app::clock::time_valid();
+    t.has_location = g_has_location;
+    t.district = g_location.district_id;
+    t.before_save = before_store_write;
+    app::data::worker_tick(t);
+}
+
 void publish() {
     Snapshot s;
     s.mode = g_mode;
@@ -582,6 +610,7 @@ void publish() {
     s.stress_paused = g_stress_paused;
     s.stress_has_run = g_stress_has_run;
     s.stress = g_counters;
+    s.wifi_down_ms = g_down_since == 0 ? 0 : now() - g_down_since;
     platform::tasks::Guard guard(*g_lock);
     g_pub = s;
 }
@@ -594,6 +623,7 @@ void worker(void*) {
     wifi::hotspot_ssid(g_ap_ssid);
     wifi::hotspot_password(g_ap_pass);
     g_has_location = platform::settings::load_location(g_location);
+    app::data::worker_start(g_has_location, g_location.district_id, before_store_write);  // spec 006 T019: load the store
     apply(Event::Boot);
     for (;;) {
         bool setup = false, cancel = false, start_over = false, stress = false, t_write = false;
@@ -676,6 +706,7 @@ void worker(void*) {
         }
         drive_wifi();
         drive_fallback();
+        drive_data();
         platform::portal::handle();
         drive_scans();
         drive_stress(stress);

@@ -30,6 +30,10 @@ CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
 CONFIG_ESP_TLS_INSECURE=n
 # Certificate validity dates are checked too (spec 005 OD5-1, research R3): HTTPS waits for a valid clock.
 CONFIG_MBEDTLS_HAVE_TIME_DATE=y
+# mbedTLS allocates from PSRAM (spec 006 research R3): with Wi-Fi connected the internal heap has about
+# 41 kB free, largest block 24 kB, and the handshake failed with PK verify 0x4290 (RSA public failed +
+# MPI allocation failed). ESP-IDF 5.5.5 components/mbedtls/Kconfig, choice MBEDTLS_MEM_ALLOC_MODE.
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
 
 # --- Crash record in the coredump partition (report line "reset:") ---
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y

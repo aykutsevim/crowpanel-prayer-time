@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "app/clock.h"
+#include "app/data_service.h"
 #include "app/net_worker.h"
 #include "app/serial_console.h"
 #include "diag/boot_screen.h"
@@ -25,6 +26,7 @@
 #include "nvp/screen/fixtures.h"
 #include "nvp/screen/gesture.h"
 #include "nvp/screen/system_state.h"
+#include "nvp/store/store.h"
 #include "nvp/time/rtc_codec.h"
 #include "nvp/time/zone.h"
 #include "nvp/version.h"
@@ -145,8 +147,9 @@ nvp::engine::Moment moment_of(int64_t local) {
 
 // What the main screen shows now (spec 003 FR-019, OD3-2 as revised, constitution II):
 //  - a fixture, when one was called up over the serial port (sample data, on purpose);
-//  - otherwise the board clock with no prayer times loaded in this slice: `no_data`
-//    (reference 14), or `no_time` when the clock is not valid.
+//  - otherwise the clock and the stored day records (spec 006 FR-012, FR-013): yesterday, today and
+//    tomorrow from the worker's published copy; `no_data` without a record for today (reference
+//    14), `offline` after more than 10 minutes without Wi-Fi, `no_time` when the clock is not valid.
 // A forced state (development command) replaces the chosen state.
 void build_main_view(nvp::engine::MainView& v, nvp::ui::SystemView& s) {
     const clock::Now n = clock::now();
@@ -156,19 +159,42 @@ void build_main_view(nvp::engine::MainView& v, nvp::ui::SystemView& s) {
         nvp::ui::fixture_view_at(g_fixture, sod, v, s);
     } else {
         s = nvp::ui::SystemView{};
-        // Spec 005 FR-007: the state from real inputs, in the order of 02 §6. Until Slice 6 no record
-        // is stored, so a valid clock gives no_data.
+        const net::Snapshot ns = net::snapshot();
+        if (ns.has_location) nvp::net::city_name(ns.location.province, ns.location.district, s.city, sizeof s.city);
         nvp::screen::StateInputs st;
         st.clock_valid = n.valid;
-        st.today_present = false;
-        s.state = nvp::screen::select_state(st);
         if (n.valid) {
             nvp::engine::Input in;
             in.now = moment_of(n.local);
-            nvp::engine::evaluate(in, v);  // no records loaded: has_data is false
+            if (clock::source() == clock::Source::Real) data::note_today(in.now.date);  // the worker's "today"
+            const data::Around a = data::around(in.now.date);
+            in.yesterday = a.present[0] ? &a.rec[0] : nullptr;
+            in.today = a.present[1] ? &a.rec[1] : nullptr;
+            in.tomorrow = a.present[2] ? &a.rec[2] : nullptr;
+            st.today_present = a.present[1];
+            // The real rank: 40 for İmsakiyem; the default 0 would choose `calculated` (analysis U1).
+            if (a.present[1]) st.today_rank = nvp::engine::rank(a.rec[1].source);
+            st.refresh_failed_or_wifi_down = false;  // cache_ending stays forced-only until Slice 7
+            st.stored_days_after_today = 400;
+            st.wifi_down_minutes = static_cast<int32_t>(ns.wifi_down_ms / 60000);
+            nvp::engine::evaluate(in, v);
+            // Son güncelleme: HH:MM when the last refresh was today, else DD.MM (02 §6, FR-013).
+            const data::Summary sum = data::summary();
+            if (sum.last_refresh_utc > 0) {
+                const nvp::engine::Moment r = moment_of(clock::to_local(sum.last_refresh_utc));
+                if (r.date == in.now.date) {
+                    std::snprintf(s.last_update, sizeof s.last_update, "%02u:%02u",
+                                  static_cast<unsigned>(r.second_of_day / 3600) % 24u,
+                                  static_cast<unsigned>(r.second_of_day / 60) % 60u);
+                } else {
+                    std::snprintf(s.last_update, sizeof s.last_update, "%02u.%02u",
+                                  static_cast<unsigned>(r.date.day) % 100u, static_cast<unsigned>(r.date.month) % 100u);
+                }
+            }
         } else {
             nvp::engine::evaluate_no_time(nullptr, nvp::engine::Settings{}, v);
         }
+        s.state = nvp::screen::select_state(st);
     }
     if (g_forced) {
         s.state = g_forced_state;
@@ -203,6 +229,24 @@ nvp::net::OverlayView overlay_view(const net::Snapshot& n) {
     in.ip = n.ip;
     in.version = nvp::kFirmwareVersion;
     in.show_qr = false;  // no settings page until Slice 8 (OD4-2)
+    // Spec 006 FR-014: source of today's record, last refresh, last stored date; the dash when absent.
+    const data::Summary sum = data::summary();
+    if (sum.present) {
+        in.has_last_day = true;
+        in.last_day = sum.last;
+        if (sum.last_refresh_utc > 0) {
+            in.has_last_update = true;
+            in.last_update_local = clock::to_local(sum.last_refresh_utc);
+        }
+        const clock::Now now = clock::now();
+        if (now.valid) {
+            const data::Around a = data::around(moment_of(now.local).date);
+            if (a.present[1]) {
+                in.has_source = true;
+                in.source = a.rec[1].source;
+            }
+        }
+    }
     return nvp::net::make_overlay_view(in);
 }
 
@@ -317,6 +361,34 @@ void print_report() {
         std::snprintf(location_line, sizeof location_line, "none");
     }
     in.location_line = location_line;
+    // Spec 006 (contracts/serial-console.md): the store summary.
+    char data_line[128];
+    {
+        const data::Summary sum = data::summary();
+        nvp::diag::DataLine d;
+        d.present = sum.present;
+        d.count = sum.count;
+        d.first = sum.first;
+        d.last = sum.last;
+        const clock::Now now = clock::now();
+        if (now.valid && sum.present) {
+            const data::Around a = data::around(moment_of(now.local).date);
+            d.today = a.present[1];
+            d.source = nvp::store::source_key(a.present[1] ? a.rec[1].source : nvp::engine::SourceId::Imsakiyem);
+        } else {
+            d.source = "imsakiyem";
+        }
+        if (sum.last_refresh_utc > 0) {
+            d.has_refresh = true;
+            const nvp::engine::Moment r = moment_of(clock::to_local(sum.last_refresh_utc));
+            d.refresh_hour = static_cast<uint8_t>(r.second_of_day / 3600);
+            d.refresh_minute = static_cast<uint8_t>((r.second_of_day / 60) % 60);
+            const int64_t utc_now = platform::systime::utc_us() / 1000000;
+            d.minutes_ago = utc_now > sum.last_refresh_utc ? static_cast<uint32_t>((utc_now - sum.last_refresh_utc) / 60) : 0;
+        }
+        nvp::diag::format_data_line(d, data_line, sizeof data_line);
+    }
+    in.data_line = data_line;
     nvp::diag::report::format(in, g_report, sizeof g_report);
     platform::console::write(g_report);
 }
@@ -540,6 +612,29 @@ void screen_command(const nvp::diag::ParsedCommand& c) {
             clock::invalidate();
             platform::console::write("clock: invalid until the next sync\n");
             break;
+        case Command::DataRefresh: {  // spec 006 contracts/serial-console.md
+            const net::Snapshot ns = net::snapshot();
+            if (!ns.has_location) {
+                platform::console::write("data: refused (no location)\n");
+            } else if (!ns.wifi_up) {
+                platform::console::write("data: refused (not connected)\n");
+            } else if (!clock::time_valid()) {
+                platform::console::write("data: refused (time not valid)\n");
+            } else {
+                data::request_refresh();
+                platform::console::write("data: refresh requested\n");
+            }
+            return;
+        }
+        case Command::DataShow:
+            data::request_show();  // the worker prints the summary
+            return;
+        case Command::DataCorrupt:
+            data::request_corrupt();
+            return;
+        case Command::DataErase:
+            data::request_erase();
+            return;
         case Command::TimeJitter:
             g_jitter_until = platform::sysinfo::uptime_ms() + static_cast<uint32_t>(c.number) * 1000;
             g_jitter_seconds = static_cast<uint32_t>(c.number);
