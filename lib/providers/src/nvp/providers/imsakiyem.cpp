@@ -1,5 +1,7 @@
 #include "nvp/providers/imsakiyem.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include "nvp/engine/calendar.h"
@@ -181,6 +183,58 @@ void ImsakiyemParser::on_json(const JsonEvent& e) {
     if (std::strcmp(e.path, "data.source.type") == 0 && e.type == JsonType::String) {
         info_.source_diyanet = !e.overflow && std::strcmp(e.text, "diyanet") == 0;
     }
+}
+
+// --- District detail (spec 007 T033) ---
+
+namespace {
+
+// "39.92063" -> 3992063 (degrees x 100 000, rounded); false when not a number.
+bool degrees_e5(const char* text, int32_t& out) {
+    char* end = nullptr;
+    const double v = std::strtod(text, &end);
+    if (end == text || *end != '\0' || v < -180.0 || v > 180.0) return false;
+    out = static_cast<int32_t>(v * 100000.0 + (v < 0 ? -0.5 : 0.5));
+    return true;
+}
+
+}  // namespace
+
+bool DistrictDetail::accepted() const {
+    if (!success || !has_coords) return false;
+    if (std::strcmp(confidence, "high") != 0 && std::strcmp(confidence, "medium") != 0) return false;
+    return lat_e5 >= 3580000 && lat_e5 <= 4220000 && lon_e5 >= 2560000 && lon_e5 <= 4490000;
+}
+
+DistrictDetailParser::DistrictDetailParser() : json_(*this) {}
+
+bool DistrictDetailParser::feed(const char* data, size_t n) { return json_.feed(data, n); }
+
+void DistrictDetailParser::finish() {
+    if (!json_.finish()) d_.success = false;
+    d_.has_coords = d_.has_coords && lat_seen_ && lon_seen_;
+}
+
+void DistrictDetailParser::on_json(const JsonEvent& e) {
+    if (std::strcmp(e.path, "success") == 0) {
+        d_.success = e.type == JsonType::True;
+    } else if (std::strcmp(e.path, "error.code") == 0) {
+        d_.not_found = e.type == JsonType::String && std::strcmp(e.text, "DISTRICT_NOT_FOUND") == 0;
+    } else if (std::strcmp(e.path, "data.coordinates.lat") == 0) {
+        lat_seen_ = e.type == JsonType::Number && degrees_e5(e.text, d_.lat_e5);
+        d_.has_coords = true;
+    } else if (std::strcmp(e.path, "data.coordinates.lon") == 0) {
+        lon_seen_ = e.type == JsonType::Number && degrees_e5(e.text, d_.lon_e5);
+        d_.has_coords = true;
+    } else if (std::strcmp(e.path, "data.coordinates.confidence") == 0 && e.type == JsonType::String && !e.overflow) {
+        std::snprintf(d_.confidence, sizeof d_.confidence, "%s", e.text);
+    }
+}
+
+bool district_detail_url(uint32_t district, char* out, size_t cap) {
+    const int n = std::snprintf(out, cap, "https://ezanvakti.imsakiyem.com/api/v2/locations/districts/%lu",
+                                static_cast<unsigned long>(district));
+    return n > 0 && static_cast<size_t>(n) < cap;
 }
 
 }  // namespace nvp::providers

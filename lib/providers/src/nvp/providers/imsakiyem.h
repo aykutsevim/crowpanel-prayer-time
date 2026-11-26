@@ -38,6 +38,12 @@ struct BatchInfo {
     bool field_overflow = false;  // a needed string was longer than the tokenizer keeps
     JsonError json_error = JsonError::None;
     bool complete = false;        // finish() saw one whole, well-formed document
+    // Spec 007: answers that do not name the place (emushaf, Aladhan; the request URL names it),
+    // a calculated source (Aladhan, rank 20: the Diyanet-source rule does not apply), and records
+    // a parser dropped because they lie outside the wanted window (before yesterday, research R1).
+    bool place_unnamed = false;
+    bool calculated_source = false;
+    uint32_t records_dropped = 0;
 };
 
 class RecordSink {
@@ -79,5 +85,35 @@ private:
 uint16_t parse_hhmm(const char* text, size_t length);
 // "YYYY-MM-DD", optionally followed by "T..." when allow_time is set. False when not a valid date.
 bool parse_iso_date(const char* text, size_t length, bool allow_time, engine::Date& out);
+
+// District detail, `GET /api/v2/locations/districts/{id}` (spec 007 T033, FR-015, research R4): only
+// for a place missing from the bundled coordinates table. Accepted with confidence "high" or "medium"
+// and a point inside Türkiye's box (04 §6).
+struct DistrictDetail {
+    bool success = false;
+    bool not_found = false;  // error.code DISTRICT_NOT_FOUND
+    bool has_coords = false;
+    int32_t lat_e5 = 0;
+    int32_t lon_e5 = 0;
+    char confidence[12] = {};
+    bool accepted() const;
+};
+
+class DistrictDetailParser : private JsonSink {
+public:
+    DistrictDetailParser();
+    bool feed(const char* data, size_t n);
+    void finish();
+    const DistrictDetail& detail() const { return d_; }
+
+private:
+    void on_json(const JsonEvent& e) override;
+    JsonStream json_;
+    DistrictDetail d_;
+    bool lat_seen_ = false;
+    bool lon_seen_ = false;
+};
+
+bool district_detail_url(uint32_t district, char* out, size_t cap);
 
 }  // namespace nvp::providers

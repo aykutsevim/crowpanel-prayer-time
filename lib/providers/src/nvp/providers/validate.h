@@ -32,6 +32,7 @@ enum class Reason : uint8_t {
     DateTooFar,     // more than 400 days after today
     DateTooOld,     // more than 2 days before today
     TooMany,        // more than 400 records
+    Implausible,    // spec 007 FR-016: over 20 minutes from the calculation for the place
 };
 
 // Short English text for logs, for example "wrong district".
