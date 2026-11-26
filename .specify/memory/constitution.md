@@ -1,4 +1,21 @@
 <!--
+Sync Impact Report (1.2.0, 2026-11-26)
+- Version change: 1.1.1 → 1.2.0 (MINOR: hardware guidance materially expanded)
+- Reason: owner request of 2026-11-26 to support both the CrowPanel Advance 7.0" and the basic
+  7.0" board; this is the "new slice" the 1.1.0 text required (Slice 11,
+  specs/011-dual-board-support/spec.md).
+- Modified sections:
+  IX. Resource Discipline: one image per board, each with its own size budget; the Advance
+      budget stays 2.9 MB, the basic-board budget is set in the Slice 11 plan.
+  Hardware and Product Constraints: two targets; the basic board's partition layout is set in
+      the Slice 11 plan; no basic-board fact is used before it is verified (principle V).
+- Principles I, II and III: unchanged (no owner approval needed under Governance).
+- Added / removed sections: none
+- Templates reviewed:
+  ✅ .specify/templates/*.md: no reference to the board; no edit needed
+  ✅ CLAUDE.md: names "Elecrow CrowPanel 7.0\", 800×480" only; still accurate, no edit needed
+- Deferred TODOs: the basic-board image budget and partition layout (Slice 11 plan).
+
 Sync Impact Report (1.1.1, 2026-11-23)
 - Version change: 1.1.0 → 1.1.1 (PATCH: wording only)
 - Reason: the project documents moved from `handover/` to `docs/` (repository restructure).
@@ -135,8 +152,9 @@ Test: request-budget tests in the planner; secret review of logs and status inte
 
 ### IX. Resource Discipline
 
-- The firmware is a single application image without over-the-air update; the image stays at
-  or below 2.9 MB, and its size is reported after every build.
+- The firmware is one application image per supported board, without over-the-air update. Each
+  image stays within its board's budget (Advance: 2.9 MB; basic: set in the Slice 11 plan), and
+  every image's size is reported after every build.
 - No blocking I/O on the UI thread (UI-04). No steady-state heap growth (SYS-04).
 - Flash writes are rare (SYS-03) and atomic (DATA-07).
 
@@ -155,11 +173,14 @@ Test: every task in `tasks.md` names at least one requirement id or spec section
 
 ## Hardware and Product Constraints
 
-- Target: CrowPanel Advance 7.0", DIS02170A, hardware revision V1.4, ESP32-S3-WROOM-1-N16R8
-  (16 MB flash, 8 MB octal PSRAM). The basic model (DIS08070H) is not a build target; adding it
-  back is a new slice.
-- Partition layout (16 MB flash, `specs/001-silent-board-bringup/plan.md`): NVS 24 kB, PHY 4 kB,
-  application 3.0 MB, LittleFS 4 MB; the rest is unallocated. Fonts budget 300 kB.
+- Targets: CrowPanel Advance 7.0", DIS02170A, hardware revision V1.4, ESP32-S3-WROOM-1-N16R8
+  (16 MB flash, 8 MB octal PSRAM); and, from Slice 11 (`specs/011-dual-board-support/`), the
+  CrowPanel 7.0" basic, DIS08070H, in the revision verified there, ESP32-S3-WROOM-1-N4R8 (4 MB
+  flash, 8 MB PSRAM). The same product runs on both; only `src/platform` and the build
+  configuration differ per board. No basic-board fact is used before it is verified (principle V).
+- Partition layout, Advance (16 MB flash, `specs/001-silent-board-bringup/plan.md`): NVS 24 kB,
+  PHY 4 kB, application 3.0 MB, LittleFS 4 MB, core dump 128 kB; the rest is unallocated. Basic
+  (4 MB flash): set in the Slice 11 plan. Fonts budget 300 kB on both.
 - Code structure and layering per `05-architecture.md` §4.
 - Code, comments, commit messages and logs are in English; UI strings are in Turkish, kept in one
   place.
@@ -188,4 +209,4 @@ Test: every task in `tasks.md` names at least one requirement id or spec section
 - Versioning follows semantic versioning: MAJOR for removing or redefining a principle, MINOR for
   adding a principle or materially expanding guidance, PATCH for clarifications.
 
-**Version**: 1.1.1 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-23
+**Version**: 1.2.0 | **Ratified**: 2026-11-20 | **Last Amended**: 2026-11-26
