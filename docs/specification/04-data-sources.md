@@ -90,6 +90,7 @@ Plan for a refresh: one version 2 `times` call with `from` = today and `to` = 31
 - Province list sample: `{"SehirAdi":"TEKİRDAĞ","SehirAdiEn":"TEKIRDAG","SehirID":"572"}`.
 - District ids are the ones in the URLs of Diyanet’s own prayer-times site (a third-party project notes that `/en-US/9206/prayer-time-for-ankara` is Ankara and 9206 is its district id here). This gives a simple manual cross-check: open `https://namazvakitleri.diyanet.gov.tr/` for the district and compare the number in the address.
 - Rate limit: none is documented; a third-party project reports about 100 requests per 15 minutes. ⚠ Design for one call per refresh.
+- *Checked 2026-11-26 (spec 007 research R1):* the OpenAPI schema (`/openapi.json`, 0.7.0) confirms the fields; `HicriTarihKisa` is `D.M.YYYY`. **The answer is served from a cache for up to five days** (`cache-control: max-age=432000`): on 26 Nov it was still the 19.11–20.12 answer of 24 Nov, so from today it covers about 24 to 31 days. An unknown district gives **502** `text/plain` (a Cloudflare page), not JSON.
 
 ### 3.3 Diyanet official API (`DIYANET`, optional)
 
@@ -113,6 +114,8 @@ Response fields to expect per day (from client libraries, ⚠ confirm): `fajr`, 
 - Calendar for a month: `GET /calendar/{year}/{month}?latitude={lat}&longitude={lon}&method=13&school=0&timezonestring=Europe/Istanbul`. The `timezonestring` parameter name is used by several open-source clients of this API. A date-range form also exists, `GET /calendar/from/{DD-MM-YYYY}/to/{DD-MM-YYYY}`; a user reported it returning one extra day before the requested start, so drop records outside the requested range.
 - By address (used once to learn coordinates, §6): `GET /timingsByAddress/{DD-MM-YYYY}?address={text}&method=13`.
 - Response: `data[]` (calendar) or `data` (single day) with `timings` (`Fajr`, `Sunrise`, `Dhuhr`, `Asr`, `Maghrib`, `Isha`, and others), `date.gregorian.date` (`DD-MM-YYYY`), `date.hijri`, and `meta.latitude`, `meta.longitude`. `meta` also reports `timezone`, `method`, `school` and the per-prayer `offset` minutes the service applied. ⚠ Timings may carry a suffix such as `06:16 (+03)`; parse the first five characters. (An `iso8601=true` parameter switches to full timestamps; it is not needed.)
+
+*Checked 2026-11-26 (spec 007 research R2; fixtures in `test/fixtures/providers/aladhan/`):* the calendar answer is `{code, status, data:[…]}` with timings like `06:08 (+03)`; `meta.offset` confirms Sunrise −7, Dhuhr +5, Asr +4, Maghrib +7; rate-limit headers say 12 requests per second. For Ankara over 38 days every time was within ±1 minute of the published table, but **the Hijri date differed on 16 of the 38 days**: do not take Aladhan's Hijri. **`timingsByAddress` returned placeholder coordinates** (`meta.latitude 8.8888888, longitude 7.7777777`) and, for another address, 503 "Geocoding is temporarily unavailable"; it is not used for coordinates (§6).
 
 Mapping: **`Fajr` → İmsak** (do not use Aladhan’s `Imsak` field, which is an earlier precautionary time), `Sunrise` → Güneş, `Dhuhr` → Öğle, `Asr` → İkindi, `Maghrib` → Akşam, `Isha` → Yatsı. Do not pass `tune`. `school=0` selects the standard Asr used by Diyanet.
 
@@ -157,19 +160,23 @@ Steps 4 and 5 fill gaps only (§4). Each step validates before storing (§7). Th
 
 Ordinary cost: 1 to 2 requests per week. Hard cap: 12 requests per refresh.
 
+**As implemented in Slice 7 (spec 007 research R6).** The goal also counts as reached when every Diyanet-derived provider that was asked answered validly: nothing more is published yet (year end, emushaf's cached month). Only a provider failure starts the retry schedule. İmsakiyem is asked from yesterday, not today: version 2 from yesterday to yesterday + 365 (within its 366-day limit), version 1 likewise from yesterday, so after a calculated period yesterday's record (the night's "yesterday Yatsı") is Diyanet-derived again (spec 007 T045; on the panel `data show` went from `imsakiyem 366, aladhan 1` to `imsakiyem 367`). Aladhan is asked only for a month that still has a day without any record. The device's own calculation (`LOCAL`) is not a step of the refresh: it fills today .. today + 7 in RAM whenever nothing covers today, also without a network. Measured in the host tests: a normal week 1 request; a week with every source failing and today calculated 360 requests (ceiling 400).
+
 ### 5.3 Failure handling
 
 - A provider call fails on timeout (10 s connect, 15 s read), non-2xx status, a body over 512 kB, a parse error, or validation failure. On HTTP 429 or 503 do not call that provider again for 30 minutes.
 - If a refresh ends without reaching its goal, retry after 5 min, 15 min, 1 h, 3 h, then every 6 h. A Wi-Fi reconnect allows one extra attempt.
 - A provider that fails five refreshes in a row is skipped for 24 hours, then tried again.
-- When calculated records are in use for today, retry the Diyanet-derived providers hourly instead of on the slower schedule.
+- When calculated records are in use for today, retry the Diyanet-derived providers hourly instead of on the slower schedule. *Slice 7:* the 24-hour skip does not apply to them then (owner direction: Diyanet data first), and each hourly retry asks only İmsakiyem version 2 and emushaf.
 
 ## 6. Coordinates
 
 `EMUSHAF` and version 1 of `IMSAKIYEM` do not supply coordinates. After the location is set and the network is up, resolve them once:
 
-1. `IMSAKIYEM` version 2 district detail, `GET /api/v2/locations/districts/{id}`: take the coordinates. It also reports a confidence level and the district’s time zone; ⚠ record a real answer to learn the field names and the possible confidence values, and decide in the plan which confidence levels are acceptable.
-2. If that fails or the confidence is too low: `ALADHAN` `timingsByAddress` with `address` = `<district>, <province>, Türkiye`; take `meta.latitude` and `meta.longitude`. Then retry with `<province>, Türkiye`.
+**As decided in Slice 7 (spec 007 research R4):** the İmsakiyem v2 district list used for the place list (§9) carries `coordinates{lat, lon, confidence}` for all 1003 entries, all `"high"` and inside Türkiye's box, so the coordinates are **bundled with the firmware** as a table generated with the place list. The steps below apply only to a place missing from that table.
+
+1. `IMSAKIYEM` version 2 district detail, `GET /api/v2/locations/districts/{id}`: take `coordinates.lat` and `.lon`, accepted when `coordinates.confidence` is `high` or `medium` (checked 2026-11-26: Ankara 9206 `39.92063, 32.85403, high`).
+2. ~~`ALADHAN` `timingsByAddress`~~: dropped; it returned placeholder coordinates (§3.4).
 3. Accept a result only if it lies inside Türkiye’s bounding box (latitude 35.8…42.2, longitude 25.6…44.9).
 4. Store the coordinates with the location. The owner can override them in the settings page.
 
@@ -183,7 +190,7 @@ Reject the whole batch if any of these fails:
 - dates parse, are unique, and none is more than 400 days ahead or more than 2 days behind today;
 - the batch is not empty and contains today or a later date (an empty list with a success flag is a failure);
 - for mirrors and the official API: the place in the response, where present, matches the configured district id;
-- if coordinates and a valid clock are available: for the first, middle and last record, each time differs from the uncalibrated `LOCAL` result for that date by no more than 20 minutes. This catches wrong districts, wrong time zones and shifted columns.
+- if coordinates and a valid clock are available: for the first, middle and last record, each time differs from the uncalibrated `LOCAL` result for that date by no more than 20 minutes. This catches wrong districts, wrong time zones and shifted columns. *Slice 7 exception (owner direction, spec 007 FR-016):* when İmsakiyem and emushaf both fail only this check but agree with each other on every shared day, the published data is kept and the coordinates are marked suspect (persisted; re-resolved on a location change).
 
 Log the reason for any rejection (SYS-05).
 
@@ -193,7 +200,7 @@ Log the reason for any rejection (SYS-05).
 - Suggested record (20 bytes, little-endian): day number since 2020-01-01 (u16), six times in minutes (6 × u16), Hijri day (u8), month (u8), year (u16), source id (u8), reserved (u8). Suggested header: magic, format version, district id, record count, write time, CRC-32 of the records. The plan may refine this; DATA-07 (atomic replace, corruption detected by checksum, previous version used if the new one is bad) is the requirement.
 - Also persisted with the store: time of the last successful refresh, per-provider failure counters, calibration offsets.
 - A store with an unknown format version is ignored and rebuilt.
-- **As implemented in Slice 6 (spec 006 research R5):** `store_<district>.bin` on LittleFS. Header 32 bytes, little-endian: `0 "NVPS" | 4 u16 version 1 | 6 u16 count | 8 u32 district | 12 u32 CRC-32 (IEEE) of the records | 16 i64 last successful refresh (UTC s) | 24 i32 first day | 28 i32 last day` (days since 1970-01-01). Records as suggested above, the last byte being flags (bit 0: Hijri date present). The time of the last refresh is kept once per store, not per record. Per-provider failure counters and calibration offsets arrive with Slice 7. Replace: write `.new`, close, read back and check, rename (atomic in littlefs).
+- **As implemented in Slice 6 (spec 006 research R5):** `store_<district>.bin` on LittleFS. Header 32 bytes, little-endian: `0 "NVPS" | 4 u16 version 1 | 6 u16 count | 8 u32 district | 12 u32 CRC-32 (IEEE) of the records | 16 i64 last successful refresh (UTC s) | 24 i32 first day | 28 i32 last day` (days since 1970-01-01). Records as suggested above, the last byte being flags (bit 0: Hijri date present). The time of the last refresh is kept once per store, not per record. Per-provider failure counters, cool-downs, the retry step and the calibration offsets are kept in `refresh.bin` since Slice 7 (120 bytes, magic `NVPR`, CRC-32, the same atomic replace; spec 007 research R7). Replace: write `.new`, close, read back and check, rename (atomic in littlefs).
 
 ## 9. Bundled place list
 

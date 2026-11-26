@@ -183,6 +183,18 @@ void test_store_ending_today() {  // spec edge case, analysis C2
     TEST_ASSERT_EQUAL_UINT16(0, nvp::store::days_after(*s, Date{2026, 11, 24}));
 }
 
+// Spec 007 T035: the days of cache_ending are consecutive; a gap ends them.
+void test_consecutive_days_after() {
+    Store* s = filled(10, Date{2026, 11, 22});  // 22 .. 01.12
+    TEST_ASSERT_EQUAL_UINT16(7, nvp::store::consecutive_days_after(*s, Date{2026, 11, 24}));
+    TEST_ASSERT_EQUAL_UINT16(0, nvp::store::consecutive_days_after(*s, Date{2026, 12, 1}));
+    // Remove 27.11: only 25 and 26 count.
+    for (uint16_t i = 5; i + 1 < s->count; ++i) s->records[i] = s->records[i + 1];
+    --s->count;
+    TEST_ASSERT_EQUAL_UINT16(2, nvp::store::consecutive_days_after(*s, Date{2026, 11, 24}));
+    TEST_ASSERT_EQUAL_UINT16(6, nvp::store::days_after(*s, Date{2026, 11, 24}));
+}
+
 void test_file_names() {
     char buf[32];
     TEST_ASSERT_TRUE(nvp::store::store_file_name(9206, false, buf, sizeof buf));
@@ -203,6 +215,7 @@ void test_empty_store_not_saved() {
 }  // namespace
 
 void run_store_format_tests() {
+    RUN_TEST(test_consecutive_days_after);
     RUN_TEST(test_round_trip_400);
     RUN_TEST(test_header_layout);
     RUN_TEST(test_crc_known_value);

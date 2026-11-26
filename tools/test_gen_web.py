@@ -63,3 +63,19 @@ class ArrayTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CoordsTest(unittest.TestCase):
+    """spec 007 T032: the generated coordinate table."""
+
+    def test_hash_matches_the_device(self) -> None:
+        import gen_web as w
+        self.assertEqual(0x8CD8EE03, w.fnv1a32("ANKARA"))  # test/test_net/test_coords.cpp
+        self.assertEqual(0x5282D4B9, w.fnv1a32("KADIKÖY"))
+
+    def test_rows_sorted_and_unique(self) -> None:
+        import gen_web as w
+        rows = w.build_coords()
+        self.assertEqual(1003, len(rows))
+        self.assertEqual(sorted(rows), rows)
+        self.assertIn((9206, 0x8CD8EE03, 3992063, 3285403), rows)

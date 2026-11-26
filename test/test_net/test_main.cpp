@@ -12,6 +12,7 @@ void run_places_tests();
 void run_submission_tests();
 void run_views_tests();
 void run_secrets_tests();
+void run_coords_tests();
 
 void setUp() {}
 void tearDown() {}
@@ -27,5 +28,6 @@ int main(int, char**) {
     run_submission_tests();
     run_views_tests();
     run_secrets_tests();
+    run_coords_tests();
     return UNITY_END();
 }

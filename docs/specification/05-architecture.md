@@ -156,9 +156,17 @@ lib/providers/   Pure C++. One parser per provider: bytes in, records out. The r
                  data, so it runs on a development machine with canned responses.
                  Slice 6: json_stream (streaming tokenizer with key paths), imsakiyem
                  (v2 and v1 parsers), validate (batch reasons), http_get (the abstract
-                 fetch) and refresh (refresh_with: v2, v1, validate, merge, atomic save).
+                 fetch) and refresh (since Slice 7 only the İmsakiyem URL builders
+                 v2_url and v1_url and http_outcome_text; Slice 6's refresh_with was
+                 replaced by refresh_run).
                  The store itself is in lib/core/src/nvp/store (format, load, save,
                  merge, the FileSystem interface).
+                 Slice 7: planner (when to refresh), runner (refresh_run: the ordered
+                 steps over an abstract Source, cap, cool-downs, plausibility),
+                 http_source (İmsakiyem, emushaf, Aladhan over HttpGet), emushaf,
+                 aladhan and plausible. The calculation (an adhan-js port) and the
+                 calibration are in lib/core/src/nvp/calc; the coordinates lookup in
+                 lib/core/src/nvp/net/coords; refresh.bin in lib/core/src/nvp/store.
 lib/ui/          LVGL only. Screens and widgets from 02-ui-spec.md. Takes a plain view
                  model struct; knows nothing about Wi-Fi, flash or time sources.
                  src/diag/: boot, diagnostic and settings screens from Slice 1.
@@ -201,7 +209,7 @@ Advance board (16 MB flash), no over-the-air update. Table `partitions/crowpanel
 
 NVS keys in use since Slice 1: namespace `wifi`, keys `ssid` and `pass` (the password is write-only, NET-08); namespace `ap`, key `pass` (eight digits, generated on first use, kept until factory reset). Slice 4 and later slices reuse them. Slice 4 adds namespace `loc` (`district_id` u32, `province`, `district`) and namespace `sec` (`pin`, six digits, generated on first start, kept until factory reset). After a successful setup the location is written first, then `wifi/pass`, then `wifi/ssid`, each committed, so a power cut never leaves half a setup (spec 004 research R10). Slice 5 adds namespace `set`, key `tz` (the POSIX time zone, default `<+03>-3`, written only by the `tz` command until the settings page).
 
-Files on LittleFS since Slice 6: `store_<district>.bin`, one per district (32-byte header with magic `NVPS`, version 1, count, district, CRC-32 of the records, last refresh, first and last day; then 20 bytes per record, at most 400). A save writes `store_<district>.new`, closes it, reads it back, then renames it over the `.bin`; a leftover `.new` is deleted at start, and a bad file is deleted and rebuilt (spec 006 research R5). The store and its published copy live in PSRAM; the UI reads only the copy.
+Files on LittleFS since Slice 6: `store_<district>.bin`, one per district (32-byte header with magic `NVPS`, version 1, count, district, CRC-32 of the records, last refresh, first and last day; then 20 bytes per record, at most 400). A save writes `store_<district>.new`, closes it, reads it back, then renames it over the `.bin`; a leftover `.new` is deleted at start, and a bad file is deleted and rebuilt (spec 006 research R5). The store and its published copy live in PSRAM; the UI reads only the copy. Since Slice 7 also `refresh.bin` (the planner's persisted state, research R7 of spec 007), written at most once per refresh; the published copy also carries the device's own calculated days. The coordinates of every place are a table in the firmware (`src/generated/places_coords.cpp`, generated from `data/places_coords.json`).
 
 Fonts are the main controllable cost. The number fonts contain only digits, colon and hyphen; text fonts contain the Turkish set in `02-ui-spec.md` §2.2; 4 bits per pixel. Budget for all fonts: 300 kB.
 

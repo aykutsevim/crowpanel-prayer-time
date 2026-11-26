@@ -23,6 +23,7 @@ const char* reason_text(Reason r) {
         case Reason::DateTooFar: return "date too far";
         case Reason::DateTooOld: return "date too old";
         case Reason::TooMany: return "too many records";
+        case Reason::Implausible: return "implausible";
     }
     return "?";
 }
@@ -34,11 +35,13 @@ Reason validate_batch(const engine::DayRecord* records, size_t n, const BatchInf
     if (info.json_error != JsonError::None || !info.complete) return Reason::Malformed;
     if (!info.success_seen || !info.success) return info.error_code[0] != '\0' ? Reason::ErrorCode : Reason::NotSuccess;
     if (info.field_overflow || !info.records_array_seen) return Reason::Malformed;
-    if (!info.district_seen || info.district_mixed || info.district != requested_district) return Reason::WrongDistrict;
-    if (!info.source_diyanet) return Reason::WrongSource;
+    if (!info.place_unnamed &&
+        (!info.district_seen || info.district_mixed || info.district != requested_district))
+        return Reason::WrongDistrict;
+    if (!info.calculated_source && !info.source_diyanet) return Reason::WrongSource;
     if (info.records_seen > kMaxBatchRecords || n > kMaxBatchRecords) return Reason::TooMany;
-    if (info.records_seen != n) return Reason::Malformed;  // an element that was not an object
-    if (n == 0) return Reason::Empty;
+    if (info.records_seen != n + info.records_dropped) return Reason::Malformed;  // an element that was not an object
+    if (n == 0) return info.records_dropped > 0 ? Reason::NoFutureDate : Reason::Empty;
 
     // Each record (ENG-01, dates).
     const engine::DayNumber t = engine::to_day_number(today);

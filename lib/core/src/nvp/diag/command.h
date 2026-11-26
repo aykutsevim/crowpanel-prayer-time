@@ -48,6 +48,11 @@ enum class Command {
     DataShow,     // print the store summary
     DataCorrupt,  // flip one byte in the middle of the store file (development builds)
     DataErase,    // delete the store of the current district and its RAM copy
+    // Spec 007 (contracts/serial-console.md, FR-022): development builds.
+    DataBlock,    // number: 1 imsakiyem, 2 emushaf, 3 aladhan (providers::ProviderId)
+    DataUnblock,  // number: as DataBlock, or 0 for all
+    DataPlan,     // print the refresh planner state
+    DataCalib,    // print the coordinates and the calibration
     InvalidArgument,  // a known command with a bad or missing argument
     Unknown,
 };

@@ -131,3 +131,37 @@ class FetchTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CoordsTest(unittest.TestCase):
+    """spec 007 T031, research R4: coordinates for every bundled entry, in the bundled order."""
+
+    @staticmethod
+    def with_coords(confidence="high", lat=39.9, lon=32.8):
+        out = []
+        for x in DISTRICTS:
+            y = dict(x)
+            y["coordinates"] = {"lat": lat, "lon": lon, "confidence": confidence}
+            out.append(y)
+        return out
+
+    def test_one_row_per_entry_with_stored_id(self) -> None:
+        provinces = build()
+        rows = g.build_coords(provinces, self.with_coords())
+        self.assertEqual(sum(len(p[2]) for p in provinces), len(rows))
+        kadikoy = [r for r in rows if r[1] == "KADIKÖY"][0]
+        self.assertEqual(9541, kadikoy[0])  # the centre's id, as the location stores it (OD4-3)
+        self.assertEqual([3990000, 3280000], kadikoy[2:])
+
+    def test_low_confidence_refused(self) -> None:
+        with self.assertRaises(g.PlaceError):
+            g.build_coords(build(), self.with_coords(confidence="low"))
+
+    def test_outside_turkey_refused(self) -> None:
+        with self.assertRaises(g.PlaceError):
+            g.build_coords(build(), self.with_coords(lat=8.8888888, lon=7.7777777))
+
+    def test_committed_table_matches_the_list(self) -> None:
+        doc = json.loads(g.COORDS_OUT.read_text(encoding="utf-8"))
+        listed = sum(len(p[2]) for p in g.verify_file(g.OUT))
+        self.assertEqual(listed, len(doc["rows"]))
