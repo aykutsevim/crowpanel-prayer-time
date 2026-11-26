@@ -2,6 +2,7 @@
 // Network, HTTPS and flash work run on core 0; LVGL and the display on core 1 (research R8).
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace platform::tasks {
@@ -12,6 +13,9 @@ using WorkerFn = void (*)(void* arg);
 bool start_worker(const char* name, int core, uint32_t stack_bytes, WorkerFn fn, void* arg);
 
 void sleep_ms(uint32_t ms);
+
+// Zeroed memory in PSRAM for large, long-lived buffers (spec 006: the day store). nullptr on failure.
+void* alloc_psram(size_t bytes);
 
 // A mutex for state shared between the two cores.
 class Lock {

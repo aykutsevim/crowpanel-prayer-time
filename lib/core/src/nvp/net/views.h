@@ -2,6 +2,9 @@
 // data-model.md). Plain structs built from the network state; lib/ui draws them.
 #pragma once
 
+#include "nvp/engine/calendar.h"
+#include "nvp/engine/day_record.h"
+
 #include <cstdint>
 
 #include "nvp/net/failure.h"
@@ -40,6 +43,13 @@ struct OverlayInput {
     const char* ip = "";
     const char* version = "";
     bool show_qr = false;  // false on the device until the settings page exists (OD4-2)
+    // Spec 006 (FR-014): from the store; the dash when absent.
+    bool has_source = false;
+    engine::SourceId source = engine::SourceId::Local;  // today's record's source
+    bool has_last_update = false;
+    int64_t last_update_local = 0;  // local seconds since 1970 of the last successful refresh
+    bool has_last_day = false;
+    engine::Date last_day;          // the last stored date
 };
 
 struct OverlayView {
@@ -57,6 +67,13 @@ struct OverlayView {
 };
 
 OverlayView make_overlay_view(const OverlayInput& in);
+
+// 02 §9.5: "Diyanet (imsakiyem)", ...
+const char* source_display_name(engine::SourceId s);
+
+// M2 (02 §4.1): the district in Turkish title case, or the province when the district is the
+// province centre (same name). Empty when there is no location.
+void city_name(const char* province, const char* district, char* out, size_t cap);
 
 // The sample values of reference renders 15, 16 and 17 (02 §7, §11), for the host harness and the
 // device's `fixture 15..17` command. The password 48271935 is the render's, not a device's.

@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "nvp/diag/selftest.h"
+#include "nvp/engine/calendar.h"
 #include "nvp/diag/stress.h"
 #include "nvp/diag/touch_judge.h"
 
@@ -60,7 +61,26 @@ struct ReportInput {
     // spec 004 (contracts/serial-console.md): names and classes only, never a password or PIN.
     const char* mode_line = nullptr;       // "setup, phones 1, last none" / "run, connected"
     const char* location_line = nullptr;   // "İSTANBUL / SULTANBEYLİ (9549)" / "none"
+    const char* data_line = nullptr;       // spec 006: format_data_line() output
 };
+
+// The store summary of the `data:` report line (spec 006 contracts/serial-console.md).
+struct DataLine {
+    bool present = false;  // false: "none"
+    uint16_t count = 0;
+    engine::Date first;
+    engine::Date last;
+    bool today = false;
+    const char* source = "";  // today's record's source key, for example "imsakiyem"
+    bool has_refresh = false;
+    uint8_t refresh_hour = 0;  // local
+    uint8_t refresh_minute = 0;
+    uint32_t minutes_ago = 0;
+};
+
+// "403 records 2026-11-24..2027-12-31, today yes, source imsakiyem, last refresh 15:52 (0 min ago)"
+// or "none". Same contract as snprintf: returns the length the full line needs.
+size_t format_data_line(const DataLine& d, char* out, size_t cap);
 
 namespace report {
 

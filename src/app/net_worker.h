@@ -36,6 +36,8 @@ struct Snapshot {
     bool stress_paused = false;
     bool stress_has_run = false;
     nvp::diag::StressCounters stress;
+    // --- Spec 006 (FR-013, T022): how long Wi-Fi has been down in the running mode; 0 when up ---
+    uint32_t wifi_down_ms = 0;
 };
 
 // Starts the worker. With the silence step failed it never starts the radio (spec 001 FR-001a).

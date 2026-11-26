@@ -31,7 +31,7 @@ Rank ≥ 40 is “Diyanet-derived”: the UI treats it as official. Rank < 40 is
 - Base URL: `https://ezanvakti.imsakiyem.com`
 - Rate limit: 100 requests per 5 minutes; HTTP 429 when exceeded.
 - District ids are Diyanet’s own: the same numbers appear in the URLs of Diyanet’s prayer-times website and in `EMUSHAF`.
-- Yearly data is loaded by the maintainer once per year (the 2026 set was added on 3 January 2026). **Expect the data to end on 31 December until the next year is loaded.** This is the main reason coverage must be extended from `EMUSHAF` (§5.2).
+- Yearly data is loaded by the maintainer once per year (the 2026 set was added on 3 January 2026). *Checked live on 2026-11-24 (spec 006 research R1):* the 2027 calendar was already published then (v2 returned 128 records to 2027-03-31, all `source.type: diyanet`). Coverage past 31 December therefore depends on when Diyanet and the maintainer publish; `EMUSHAF` (§5.2) still covers a late year.
 
 **Version 2 endpoints (preferred).** Envelope: `{ success, data, meta: { version } }` on success and `{ success: false, error: { code, message, details }, meta }` on failure, with the request id in the `x-request-id` header. Documented error codes include `VALIDATION_ERROR`, `INVALID_DATE`, `RANGE_TOO_LARGE`, `DISTRICT_NOT_FOUND`, `NO_TIMES_FOR_RANGE`, `LOCATION_REQUIRED`, `AMBIGUOUS_LOCATION`, `NO_DISTRICT_NEARBY`.
 
@@ -44,7 +44,7 @@ Rank ≥ 40 is “Diyanet-derived”: the UI treats it as official. Rank < 40 is
 | `GET /api/v2/locations/search?q=…`, `/nearest?lat=…&lon=…` | not needed |
 | `GET /api/v2/times/next` | not needed; the device computes this itself |
 
-⚠ The version 2 **response bodies were not seen**; only the endpoint list and parameters are documented. Record real answers of `times` and `locations/districts/{id}` as fixtures before writing the parser (field names for the date, the six times, the Hijri date, coordinates and confidence).
+*Seen live on 2026-11-24 (spec 006 research R1; fixtures in `test/fixtures/providers/imsakiyem/`):* `times` answers `{success, data:{location:{district_id, name, …}, source:{type:"diyanet" | "copied_from_center", provider, center_district_id?}, times:[{date:"YYYY-MM-DD", hijri:{day, month, month_name, year}, imsak:"HH:MM", gunes, ogle, ikindi, aksam, yatsi, flags:[]}]}, meta:{version, count, from, to, timezone}}` (about 213 B per day); an unknown district gives **404** `{success:false, error:{code:"DISTRICT_NOT_FOUND"}}`. `locations/districts/{id}` answers `{district_id, name, diyanet_name, state{…}, coordinates{lat, lon, confidence}, timezone}` (spec 004 research R6).
 
 **Version 1 endpoints (fallback inside this provider).**
 
@@ -75,7 +75,7 @@ Version 1 mapping: `times.*` → the six times; calendar date = the first ten ch
 Known rough edges, all reasons to validate strictly (§7):
 
 - The live version 1 answer carries `meta.totalCount`, while the API description declares a `pagination` object (`currentPage`, `totalPages`, `totalItems`, `itemsPerPage`) and names the district field `districtId`. Do not depend on paging metadata; request windows small enough to fit one page, or page until an empty page.
-- A third-party client reports that an unknown district id yields `success: true` with an empty `data` array. **An empty result is a failure**, not “no times”.
+- A third-party client reports that an unknown district id yields `success: true` with an empty `data` array. **An empty result is a failure**, not “no times”. (Version 2 answers 404 for an unknown district, checked 2026-11-24.)
 
 Plan for a refresh: one version 2 `times` call with `from` = today and `to` = 31 December. If version 2 is unavailable or its answer does not validate, fall back to version 1 `range` in windows of at most 90 days.
 
@@ -84,7 +84,7 @@ Plan for a refresh: one version 2 `times` call with `from` = today and `to` = 31
 - Documentation: `https://ezanvakti.emushaf.net/` (version 0.7.0). OpenAPI/Swagger at `/docs`, ReDoc at `/redoc`.
 - Base URL: `https://ezanvakti.emushaf.net`
 - Endpoints: `GET /ulkeler`, `GET /sehirler/{countryId}`, `GET /ilceler/{provinceId}`, `GET /vakitler/{districtId}`.
-- `/vakitler/{districtId}` returns a JSON array of about 30 daily records starting today.
+- `/vakitler/{districtId}` returns a JSON array of about 30 daily records. *Checked 2026-11-24:* 32 records starting five days **before** today (19 Nov for a request on 24 Nov); for Ankara (9206) the 27 overlapping days were identical to İmsakiyem v2 in all six times and the Hijri date.
 - Fields confirmed in use: `MiladiTarihKisa` (`DD.MM.YYYY`), `Imsak`, `Gunes`, `Ogle`, `Ikindi`, `Aksam`, `Yatsi` (`HH:MM`), `HicriTarihUzun` (for example `7 Cemaziyelahir 1448`). ⚠ Read the complete schema from `/docs`.
 - Documented quirk: `MiladiTarihUzunIso8601` always carries Türkiye’s UTC offset regardless of location. **Take the calendar date from `MiladiTarihKisa` and ignore offsets.**
 - Province list sample: `{"SehirAdi":"TEKİRDAĞ","SehirAdiEn":"TEKIRDAG","SehirID":"572"}`.
@@ -193,6 +193,7 @@ Log the reason for any rejection (SYS-05).
 - Suggested record (20 bytes, little-endian): day number since 2020-01-01 (u16), six times in minutes (6 × u16), Hijri day (u8), month (u8), year (u16), source id (u8), reserved (u8). Suggested header: magic, format version, district id, record count, write time, CRC-32 of the records. The plan may refine this; DATA-07 (atomic replace, corruption detected by checksum, previous version used if the new one is bad) is the requirement.
 - Also persisted with the store: time of the last successful refresh, per-provider failure counters, calibration offsets.
 - A store with an unknown format version is ignored and rebuilt.
+- **As implemented in Slice 6 (spec 006 research R5):** `store_<district>.bin` on LittleFS. Header 32 bytes, little-endian: `0 "NVPS" | 4 u16 version 1 | 6 u16 count | 8 u32 district | 12 u32 CRC-32 (IEEE) of the records | 16 i64 last successful refresh (UTC s) | 24 i32 first day | 28 i32 last day` (days since 1970-01-01). Records as suggested above, the last byte being flags (bit 0: Hijri date present). The time of the last refresh is kept once per store, not per record. Per-provider failure counters and calibration offsets arrive with Slice 7. Replace: write `.new`, close, read back and check, rename (atomic in littlefs).
 
 ## 9. Bundled place list
 

@@ -42,6 +42,10 @@ constexpr Entry kCommands[] = {
     {"ntp on", Command::NtpOn},
     {"ntp off", Command::NtpOff},
     {"clock invalid", Command::ClockInvalid},
+    {"data refresh", Command::DataRefresh},
+    {"data show", Command::DataShow},
+    {"data corrupt", Command::DataCorrupt},
+    {"data erase", Command::DataErase},
 };
 
 }  // namespace

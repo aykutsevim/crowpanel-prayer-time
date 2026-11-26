@@ -190,8 +190,33 @@ size_t format(const ReportInput& in, char* out, size_t cap) {
     if (in.screen_line != nullptr) w.add("screen: %s\n", in.screen_line);
     if (in.mode_line != nullptr) w.add("mode: %s\n", in.mode_line);  // spec 004
     if (in.location_line != nullptr) w.add("location: %s\n", in.location_line);
+    if (in.data_line != nullptr) w.add("data: %s\n", in.data_line);  // spec 006
     w.add("=== END ===\n");
     return w.length();
 }
 
 }  // namespace nvp::diag::report
+
+namespace nvp::diag {
+
+size_t format_data_line(const DataLine& d, char* out, size_t cap) {
+    int n;
+    if (!d.present) {
+        n = std::snprintf(out, cap, "none");
+    } else if (d.has_refresh) {
+        n = std::snprintf(out, cap,
+                          "%u records %04d-%02d-%02d..%04d-%02d-%02d, today %s, source %s, last refresh %02u:%02u "
+                          "(%lu min ago)",
+                          static_cast<unsigned>(d.count), d.first.year, d.first.month, d.first.day, d.last.year,
+                          d.last.month, d.last.day, d.today ? "yes" : "no", d.source,
+                          static_cast<unsigned>(d.refresh_hour), static_cast<unsigned>(d.refresh_minute),
+                          static_cast<unsigned long>(d.minutes_ago));
+    } else {
+        n = std::snprintf(out, cap, "%u records %04d-%02d-%02d..%04d-%02d-%02d, today %s, source %s, last refresh none",
+                          static_cast<unsigned>(d.count), d.first.year, d.first.month, d.first.day, d.last.year,
+                          d.last.month, d.last.day, d.today ? "yes" : "no", d.source);
+    }
+    return n < 0 ? 0 : static_cast<size_t>(n);
+}
+
+}  // namespace nvp::diag

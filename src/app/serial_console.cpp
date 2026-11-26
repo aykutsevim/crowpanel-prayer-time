@@ -44,6 +44,8 @@ void serial_console_print_help() {
         "  clock speed N | pause | run      simulated clock, speed 1..3600\n"
         "  state ok|offline|calculated|no_time|no_data | cache_ending N | auto\n"
         "  fixture N | off                  reference fixture 1..14\n"
+        "  data refresh | show              refresh the prayer times now; print the store summary\n"
+        "  data corrupt | erase             damage the store file; delete the store\n"
 #endif
     );
 }
@@ -64,6 +66,7 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::StateAuto: case Command::Fixture: case Command::FixtureOff: case Command::InvalidArgument:
         case Command::TzSet: case Command::TimeSync: case Command::NtpOn: case Command::NtpOff:
         case Command::ClockInvalid: case Command::TimeJitter:
+        case Command::DataRefresh: case Command::DataShow: case Command::DataCorrupt: case Command::DataErase:
             command = Command::Unknown;
             break;
         default: break;
@@ -102,6 +105,10 @@ void serial_console_poll(const ConsoleHandlers& handlers) {
         case Command::NtpOff:
         case Command::ClockInvalid:
         case Command::TimeJitter:
+        case Command::DataRefresh:  // spec 006
+        case Command::DataShow:
+        case Command::DataCorrupt:
+        case Command::DataErase:
             if (handlers.screen_command != nullptr) {
                 handlers.screen_command(parsed);
             } else {

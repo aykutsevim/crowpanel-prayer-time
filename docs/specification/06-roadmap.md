@@ -74,6 +74,7 @@ Order matters. The early slices remove the largest risks first: can the board sh
 **Delivers.** HTTPS client with certificate verification; the İmsakiyem provider with streaming parse; batch validation; the persistent day store with atomic replace; the main screen fed from the store; `ok`, `offline` and `no_data` states; Hijri date from the data.
 **Done when.** Times on screen equal Diyanet’s website for the district on three different days of the stored range; after a restart with Wi-Fi off the same times appear from the store; a corrupted store file is detected and rebuilt.
 **Out of scope.** Scheduling, other providers, calculated fallbacks.
+**Outcome.** Spec 006. İmsakiyem v2 over HTTPS (v1 `range` as the fallback), parsed while it streams by a small tokenizer of our own; a batch is validated whole and merged by the rules of 04 §4. The store is one file per district with a CRC, replaced by write-new, verify, rename: in the host test a cut at each of the 59 calls of a save always left exactly the old or the new store. On the panel: 366 records (to 24 November 2027) stored 2.2 s after the Wi-Fi connection, the store loaded 0.44 s after a restart, and a corrupted file ignored and rebuilt by itself. TLS ran out of internal RAM with Wi-Fi up, so mbedTLS now allocates from PSRAM.
 
 ## Slice 7: Automatic refresh and fallback
 

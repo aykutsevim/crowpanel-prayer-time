@@ -43,6 +43,11 @@ enum class Command {
     NtpOff,        // stop SNTP; the HTTP fallback takes over after 60 s
     ClockInvalid,  // the time is not valid until the next accepted sample
     TimeJitter,    // measure second alignment for N seconds (10..3600)
+    // Spec 006 (contracts/serial-console.md): the day-record store.
+    DataRefresh,  // refresh now (running mode, Wi-Fi up, clock valid)
+    DataShow,     // print the store summary
+    DataCorrupt,  // flip one byte in the middle of the store file (development builds)
+    DataErase,    // delete the store of the current district and its RAM copy
     InvalidArgument,  // a known command with a bad or missing argument
     Unknown,
 };
